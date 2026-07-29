@@ -1,0 +1,25 @@
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+  type UIMessage,
+} from "ai";
+import { answerQuestion } from "@/lib/ai/rag";
+import { getCurrentUserId } from "@/lib/auth";
+
+export const maxDuration = 30;
+
+export async function POST(request: Request) {
+  const { messages, meetingId }: { messages: UIMessage[]; meetingId?: string } =
+    await request.json();
+
+  const userId = await getCurrentUserId();
+  const result = await answerQuestion(await convertToModelMessages(messages), {
+    userId,
+    meetingId,
+  });
+
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
+}
