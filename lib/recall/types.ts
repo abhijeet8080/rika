@@ -104,7 +104,7 @@ export const TranscriptSchema = z.array(TranscriptEntrySchema);
 export type TranscriptEntry = z.infer<typeof TranscriptEntrySchema>;
 
 export interface CreateCalendarParams {
-  platform: "google_calendar";
+  platform: "google_calendar" | "microsoft_outlook";
   oauthClientId: string;
   oauthClientSecret?: string;
   oauthRefreshToken: string;
@@ -118,6 +118,17 @@ export interface RecallCalendar {
   [key: string]: unknown;
 }
 
+export interface RecallCalendarEventBot {
+  bot_id: string;
+  start_time: string;
+  deduplication_key: string;
+  meeting_url?: string;
+}
+
+// Confirmed live: scheduled bots come back as a `bots` array (recurring
+// events can have more than one), never a top-level `bot_id` — an earlier
+// version of this type assumed the latter, which silently misreported
+// every successful schedule as a failure.
 export interface RecallCalendarEvent {
   id: string;
   calendar_id: string;
@@ -126,7 +137,7 @@ export interface RecallCalendarEvent {
   end_time: string;
   is_deleted: boolean;
   meeting_url?: string | null;
-  bot_id?: string | null;
+  bots?: RecallCalendarEventBot[];
   [key: string]: unknown;
 }
 

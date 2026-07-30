@@ -44,3 +44,6 @@ next-env.d.ts
 .vscode
 .cursorindexingignore
 .specstory
+
+# clerk configuration (can include secrets)
+/.clerk/

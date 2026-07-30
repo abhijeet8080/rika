@@ -37,4 +37,10 @@ export const env = {
   get DEEPSEEK_API_KEY() {
     return required("DEEPSEEK_API_KEY");
   },
+  get MICROSOFT_OAUTH_CLIENT_ID() {
+    return required("MICROSOFT_OAUTH_CLIENT_ID");
+  },
+  get MICROSOFT_OAUTH_CLIENT_SECRET() {
+    return required("MICROSOFT_OAUTH_CLIENT_SECRET");
+  },
 };

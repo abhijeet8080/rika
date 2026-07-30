@@ -1,0 +1,123 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ChatPanel } from "@/components/chat-panel";
+import { TranscriptViewer, type TranscriptChunkItem } from "@/components/transcript-viewer";
+
+type Tab = "transcript" | "chat";
+
+export function MeetingWorkspace({
+  meetingId,
+  chunks,
+  videoUrl,
+  audioUrl,
+}: {
+  meetingId: string;
+  chunks: TranscriptChunkItem[];
+  videoUrl: string | null;
+  audioUrl: string | null;
+}) {
+  const [tab, setTab] = useState<Tab>("transcript");
+  const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
+  const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+
+  const hasRecording = Boolean(videoUrl || audioUrl);
+
+  function handleSeek(startMs: number) {
+    const media = mediaRef.current;
+    if (!media) return;
+    media.currentTime = startMs / 1000;
+    void media.play();
+  }
+
+  function handleTimeUpdate() {
+    const media = mediaRef.current;
+    if (!media) return;
+    const currentMs = media.currentTime * 1000;
+
+    let current: TranscriptChunkItem | null = null;
+    for (const chunk of chunks) {
+      if (chunk.startMs > currentMs) break;
+      current = chunk;
+    }
+    setActiveChunkId(current?.id ?? null);
+  }
+
+  useEffect(() => {
+    if (!activeChunkId) return;
+    transcriptRef.current
+      ?.querySelector(`[data-chunk-id="${activeChunkId}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeChunkId]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {hasRecording && (
+        <div className="overflow-hidden rounded-xl border border-line bg-ink">
+          {videoUrl ? (
+            <video
+              ref={(el) => {
+                mediaRef.current = el;
+              }}
+              src={videoUrl}
+              controls
+              preload="metadata"
+              playsInline
+              onTimeUpdate={handleTimeUpdate}
+              className="aspect-video w-full bg-ink"
+            />
+          ) : (
+            <audio
+              ref={(el) => {
+                mediaRef.current = el;
+              }}
+              src={audioUrl ?? undefined}
+              controls
+              preload="metadata"
+              onTimeUpdate={handleTimeUpdate}
+              className="w-full"
+            />
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-5 border-b border-line font-mono text-[13px] tracking-wider uppercase">
+        <button
+          type="button"
+          onClick={() => setTab("transcript")}
+          className={`border-b-2 pb-2 transition-colors ${
+            tab === "transcript"
+              ? "border-rec text-ink"
+              : "border-transparent text-ink-muted hover:text-ink"
+          }`}
+        >
+          Transcript
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("chat")}
+          className={`border-b-2 pb-2 transition-colors ${
+            tab === "chat"
+              ? "border-rec text-ink"
+              : "border-transparent text-ink-muted hover:text-ink"
+          }`}
+        >
+          Ask Rika
+        </button>
+      </div>
+
+      {tab === "transcript" ? (
+        <div ref={transcriptRef}>
+          <TranscriptViewer
+            chunks={chunks}
+            onSeek={hasRecording ? handleSeek : undefined}
+            activeChunkId={activeChunkId}
+          />
+        </div>
+      ) : (
+        <ChatPanel meetingId={meetingId} />
+      )}
+    </div>
+  );
+}

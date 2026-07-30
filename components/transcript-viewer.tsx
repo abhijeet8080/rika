@@ -1,8 +1,39 @@
+import { EmptyState } from "@/components/empty-state";
+
 export interface TranscriptChunkItem {
   id: string;
   speaker: string | null;
   startMs: number;
   text: string;
+}
+
+const AVATAR_COLORS = [
+  "#1F6F54",
+  "#B45309",
+  "#6D28D9",
+  "#BE185D",
+  "#1D4ED8",
+  "#0F766E",
+];
+
+function colorFor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function SpeakerAvatar({ name }: { name: string | null }) {
+  const label = name ?? "?";
+  return (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[12px] font-medium text-white"
+      style={{ backgroundColor: colorFor(label) }}
+    >
+      {label[0]?.toUpperCase() ?? "?"}
+    </span>
+  );
 }
 
 function formatTimestamp(ms: number): string {
@@ -12,26 +43,61 @@ function formatTimestamp(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function TranscriptViewer({ chunks }: { chunks: TranscriptChunkItem[] }) {
+export function TranscriptViewer({
+  chunks,
+  onSeek,
+  activeChunkId,
+}: {
+  chunks: TranscriptChunkItem[];
+  /** Omit to render read-only timestamps (no recording to seek). */
+  onSeek?: (startMs: number) => void;
+  activeChunkId?: string | null;
+}) {
   if (chunks.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">No transcript available yet.</p>
-    );
+    return <EmptyState>No transcript available yet.</EmptyState>;
   }
 
   return (
-    <ol className="flex flex-col gap-3">
-      {chunks.map((chunk) => (
-        <li key={chunk.id} className="text-sm">
-          <div className="flex gap-2 text-zinc-500">
-            <span className="font-medium text-foreground">
-              {chunk.speaker ?? "Unknown"}
-            </span>
-            <span>{formatTimestamp(chunk.startMs)}</span>
-          </div>
-          <p>{chunk.text}</p>
-        </li>
-      ))}
-    </ol>
+    <div className="max-h-[420px] overflow-y-auto rounded-xl border border-line bg-card">
+      <ol className="divide-y divide-line">
+        {chunks.map((chunk) => {
+          const isActive = chunk.id === activeChunkId;
+          return (
+            <li
+              key={chunk.id}
+              data-chunk-id={chunk.id}
+              className={`flex gap-3 px-4 py-3 transition-colors ${
+                isActive ? "bg-paper-soft" : ""
+              }`}
+            >
+              <SpeakerAvatar name={chunk.speaker} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-medium text-ink">
+                    {chunk.speaker ?? "Unknown"}
+                  </span>
+                  {onSeek ? (
+                    <button
+                      type="button"
+                      onClick={() => onSeek(chunk.startMs)}
+                      className="font-mono text-[12px] text-ink-muted underline underline-offset-2 hover:text-ink"
+                    >
+                      {formatTimestamp(chunk.startMs)}
+                    </button>
+                  ) : (
+                    <span className="font-mono text-[12px] text-ink-muted">
+                      {formatTimestamp(chunk.startMs)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-[14px] leading-relaxed text-ink-muted">
+                  {chunk.text}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

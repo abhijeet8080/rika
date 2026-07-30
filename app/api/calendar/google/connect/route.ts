@@ -12,7 +12,10 @@ const SCOPES = [
 ].join(" ");
 
 export async function GET(request: Request) {
-  const redirectUri = new URL("/api/calendar/callback", request.url).toString();
+  const redirectUri = new URL(
+    "/api/calendar/google/callback",
+    request.url,
+  ).toString();
   const state = randomBytes(16).toString("hex");
 
   const authUrl = new URL(GOOGLE_AUTH_URL);
@@ -21,9 +24,11 @@ export async function GET(request: Request) {
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("scope", SCOPES);
   // Force the consent screen every time so Google actually issues a
-  // refresh_token (it's otherwise only granted on first-ever consent).
+  // refresh_token (it's otherwise only granted on first-ever consent), and
+  // force the account picker so connecting a second account doesn't just
+  // silently re-auth whichever account is already signed into the browser.
   authUrl.searchParams.set("access_type", "offline");
-  authUrl.searchParams.set("prompt", "consent");
+  authUrl.searchParams.set("prompt", "select_account consent");
   authUrl.searchParams.set("state", state);
 
   const response = NextResponse.redirect(authUrl);

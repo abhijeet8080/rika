@@ -2,8 +2,9 @@ import { eq } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "@/lib/db/client";
 import { calendarConnections } from "@/lib/db/schema";
-import { retrieveCalendar } from "@/lib/recall/client";
+import { listCalendarEvents, retrieveCalendar } from "@/lib/recall/client";
 import { markBotFatal, processCompletedBot } from "@/lib/recall/process-meeting";
+import { scheduleBotForCalendarEvent } from "@/lib/recall/schedule-event";
 import {
   RecallBotWebhookPayloadSchema,
   RecallCalendarWebhookPayloadSchema,
@@ -16,6 +17,35 @@ async function syncCalendarStatus(calendarId: string): Promise<void> {
     .update(calendarConnections)
     .set({ status: calendar.status })
     .where(eq(calendarConnections.recallCalendarId, calendarId));
+}
+
+async function autoScheduleChangedEvents(
+  calendarId: string,
+  updatedAtGte?: string,
+): Promise<void> {
+  const [connection] = await db
+    .select()
+    .from(calendarConnections)
+    .where(eq(calendarConnections.recallCalendarId, calendarId));
+
+  if (!connection || !connection.autoRecord) return;
+
+  const result = await listCalendarEvents(calendarId, { updatedAtGte });
+
+  for (const event of result.results) {
+    if (event.is_deleted || !event.meeting_url || event.bots?.length) {
+      continue;
+    }
+    try {
+      await scheduleBotForCalendarEvent(
+        connection.userId,
+        event.id,
+        event.ical_uid,
+      );
+    } catch (err) {
+      console.error(`Failed to auto-schedule event ${event.id}`, err);
+    }
+  }
 }
 
 export async function POST(request: Request) {
@@ -56,9 +86,15 @@ export async function POST(request: Request) {
           console.error(`Failed to sync calendar ${calendarId}`, err);
         }),
       );
+    } else if (payload.event === "calendar.sync_events") {
+      const calendarId = payload.data.calendar_id;
+      const updatedAtGte = payload.data.last_updated_ts;
+      after(() =>
+        autoScheduleChangedEvents(calendarId, updatedAtGte).catch((err) => {
+          console.error(`Failed to auto-schedule for calendar ${calendarId}`, err);
+        }),
+      );
     }
-    // calendar.sync_events: nothing to invalidate locally — the calendar
-    // page always fetches events live from Recall on load.
   }
 
   return Response.json({ received: true });

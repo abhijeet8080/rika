@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   pgTable,
   text,
@@ -9,6 +10,9 @@ import {
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
+  // Nullable — pre-auth (Phase 1) rows get linked to a Clerk account on
+  // first sign-in rather than migrated up front.
+  clerkUserId: text("clerk_user_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -19,9 +23,17 @@ export const calendarConnections = pgTable("calendar_connections", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  provider: text("provider").notNull(), // 'google'
+  provider: text("provider").notNull(), // 'google' | 'microsoft_outlook'
+  // The connected account's email — lets a user connect multiple accounts
+  // per provider (e.g. personal + work Gmail) as distinct rows, deduped
+  // on (userId, provider, email) rather than just (userId, provider).
+  email: text("email"),
   recallCalendarId: text("recall_calendar_id").notNull(),
   status: text("status").notNull(), // 'connected' | 'disconnected' | 'error'
+  // When on, every meeting synced from this connection gets a bot
+  // scheduled automatically (via the calendar.sync_events webhook), no
+  // manual "Record" click needed.
+  autoRecord: boolean("auto_record").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

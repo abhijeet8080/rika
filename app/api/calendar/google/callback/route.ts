@@ -1,9 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
 import { getCurrentUserId } from "@/lib/auth";
-import { db } from "@/lib/db/client";
-import { calendarConnections } from "@/lib/db/schema";
+import { upsertCalendarConnection } from "@/lib/db/calendar-connections";
 import { env } from "@/lib/env";
 import { createCalendar } from "@/lib/recall/client";
 
@@ -43,7 +41,10 @@ export async function GET(request: Request) {
     );
   }
 
-  const redirectUri = new URL("/api/calendar/callback", request.url).toString();
+  const redirectUri = new URL(
+    "/api/calendar/google/callback",
+    request.url,
+  ).toString();
 
   const tokenRes = await fetch(TOKEN_URL, {
     method: "POST",
@@ -96,31 +97,15 @@ export async function GET(request: Request) {
   });
 
   const userId = await getCurrentUserId();
-  const [existing] = await db
-    .select()
-    .from(calendarConnections)
-    .where(
-      and(
-        eq(calendarConnections.userId, userId),
-        eq(calendarConnections.provider, "google"),
-      ),
-    );
-
-  if (existing) {
-    await db
-      .update(calendarConnections)
-      .set({ recallCalendarId: calendar.id, status: calendar.status })
-      .where(eq(calendarConnections.id, existing.id));
-  } else {
-    await db.insert(calendarConnections).values({
-      userId,
-      provider: "google",
-      recallCalendarId: calendar.id,
-      status: calendar.status,
-    });
-  }
+  await upsertCalendarConnection(
+    userId,
+    "google",
+    calendar.id,
+    calendar.status,
+    oauthEmail,
+  );
 
   return NextResponse.redirect(
-    new URL("/settings/calendar?connected=1", request.url),
+    new URL("/settings/calendar?connected=google", request.url),
   );
 }

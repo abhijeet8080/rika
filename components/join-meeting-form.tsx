@@ -1,0 +1,87 @@
+"use client";
+
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+interface JoinedMeeting {
+  id: string;
+  status: string;
+  platform: string | null;
+  meetingUrl: string;
+}
+
+export function JoinMeetingForm() {
+  const router = useRouter();
+  const [meetingUrl, setMeetingUrl] = useState("");
+  const [status, setStatus] = useState<"idle" | "joining" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [joined, setJoined] = useState<JoinedMeeting | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("joining");
+    setError(null);
+    setJoined(null);
+
+    const res = await fetch("/api/bots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ meetingUrl }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setError(body.error ?? `Request failed (${res.status})`);
+      setStatus("error");
+      return;
+    }
+
+    setJoined(body.meeting);
+    setStatus("idle");
+    setMeetingUrl("");
+    router.refresh();
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-2 sm:w-auto">
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="url"
+          required
+          value={meetingUrl}
+          onChange={(e) => setMeetingUrl(e.target.value)}
+          placeholder="Paste a Zoom, Meet, or Teams link..."
+          disabled={status === "joining"}
+          className="w-full rounded-full border border-line bg-card px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-ink/30 disabled:opacity-50 sm:w-72"
+        />
+        <button
+          type="submit"
+          disabled={status === "joining"}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/85 disabled:opacity-50"
+        >
+          {status === "joining" ? "Joining…" : "Join now"}
+          {status !== "joining" && (
+            <ArrowRight className="h-4 w-4" strokeWidth={2} />
+          )}
+        </button>
+      </form>
+
+      {error && <p className="font-mono text-[12px] text-rec">{error}</p>}
+
+      {joined && (
+        <p className="font-mono text-[12px] text-ink-muted">
+          Bot dispatched to {joined.platform ?? "the call"} ·{" "}
+          <Link
+            href={`/meetings/${joined.id}`}
+            className="text-ink underline underline-offset-2"
+          >
+            view meeting
+          </Link>
+        </p>
+      )}
+    </div>
+  );
+}

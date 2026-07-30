@@ -1,0 +1,48 @@
+import { db } from "@/lib/db/client";
+import { meetings } from "@/lib/db/schema";
+import { scheduleCalendarBot } from "./client";
+import { detectPlatform } from "./platform";
+
+// Shared by the manual "Record" button and auto-record (backfill +
+// calendar.sync_events webhook) — both ultimately need to call Recall's
+// schedule-bot-for-event endpoint and turn the response into a
+// `meetings` row the same way.
+export async function scheduleBotForCalendarEvent(
+  userId: string,
+  eventId: string,
+  icalUid: string,
+) {
+  const event = await scheduleCalendarBot(eventId, {
+    deduplicationKey: icalUid,
+    botConfig: { botName: "Rika" },
+  });
+
+  // Recall returns scheduled bots as a `bots` array (confirmed live) —
+  // take the most recently scheduled one.
+  const botId = event.bots?.at(-1)?.bot_id;
+  if (!botId) {
+    throw new Error(`Recall did not return a bot id for event ${eventId}`);
+  }
+
+  const meetingUrl =
+    typeof event.meeting_url === "string" ? event.meeting_url : "";
+
+  const [meeting] = await db
+    .insert(meetings)
+    .values({
+      userId,
+      recallBotId: botId,
+      platform: meetingUrl ? detectPlatform(meetingUrl) : null,
+      meetingUrl,
+      calendarEventId: event.id,
+      scheduledStart: new Date(event.start_time),
+      status: "scheduled",
+    })
+    .onConflictDoUpdate({
+      target: meetings.recallBotId,
+      set: { status: "scheduled", scheduledStart: new Date(event.start_time) },
+    })
+    .returning();
+
+  return meeting;
+}

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { ChevronRight, Video } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { StatusBadge } from "@/components/status-badge";
 
 export interface MeetingListItem {
   id: string;
@@ -12,7 +15,13 @@ export interface MeetingListItem {
 
 function formatWhen(meeting: MeetingListItem): string {
   const date = meeting.startedAt ?? meeting.scheduledStart;
-  return date ? date.toLocaleString() : "—";
+  if (!date) return "Not scheduled";
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export function MeetingList({
@@ -23,29 +32,37 @@ export function MeetingList({
   emptyLabel: string;
 }) {
   if (meetings.length === 0) {
-    return <p className="text-sm text-zinc-500">{emptyLabel}</p>;
+    if (!emptyLabel) return null;
+    return <EmptyState>{emptyLabel}</EmptyState>;
   }
 
   return (
-    <ul className="flex max-w-lg flex-col gap-2">
+    <ul className="flex flex-col gap-2">
       {meetings.map((meeting) => (
-        <li
-          key={meeting.id}
-          className="rounded border border-black/[.08] p-3 text-sm dark:border-white/[.145]"
-        >
+        <li key={meeting.id}>
           <Link
             href={`/meetings/${meeting.id}`}
-            className="flex items-center justify-between gap-4"
+            className="group flex items-center gap-4 rounded-xl border border-line bg-card px-4 py-3 transition-colors hover:border-ink/25 hover:bg-white"
           >
-            <div>
-              <p className="font-medium">{meeting.title ?? meeting.meetingUrl}</p>
-              <p className="text-zinc-500">
-                {formatWhen(meeting)} · {meeting.platform ?? "unknown platform"}
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full border border-black/[.15] px-2 py-0.5 text-xs dark:border-white/[.2]">
-              {meeting.status}
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-soft text-ink-muted">
+              <Video className="h-4 w-4" strokeWidth={1.75} />
             </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">
+                {meeting.title ?? meeting.meetingUrl}
+              </span>
+              <span className="block truncate font-mono text-[12px] text-ink-muted">
+                {formatWhen(meeting)} · {meeting.platform ?? "unknown platform"}
+              </span>
+            </span>
+
+            <StatusBadge status={meeting.status} />
+
+            <ChevronRight
+              className="h-4 w-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5"
+              strokeWidth={1.75}
+            />
           </Link>
         </li>
       ))}
