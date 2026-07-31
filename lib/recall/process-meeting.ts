@@ -134,10 +134,17 @@ export async function processCompletedBot(botId: string): Promise<void> {
     );
   }
 
+  // "Join now" meetings have no calendar event to pull a title from up
+  // front — meeting_metadata is the only place one might show up, and
+  // only after the call. Don't clobber a title already set at schedule
+  // time (calendar-derived titles are more reliable than this).
+  const metadataTitle = shortcuts.meeting_metadata?.data?.title;
+
   await db
     .update(meetings)
     .set({
       status: "done",
+      title: meeting.title ?? metadataTitle ?? null,
       recordingVideoUrl: shortcuts.video_mixed?.data?.download_url ?? null,
       recordingAudioUrl: shortcuts.audio_mixed?.data?.download_url ?? null,
       endedAt: new Date(),

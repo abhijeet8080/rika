@@ -1,5 +1,8 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
 import { streamText, type ModelMessage } from "ai";
+import { and, eq, isNull } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { meetings } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { qdrant, TRANSCRIPT_CHUNKS_COLLECTION } from "@/lib/vector/client";
 import { embedQuery } from "./embeddings";
@@ -18,8 +21,13 @@ function getChatModel() {
 
 export interface ChatScope {
   userId: string;
-  /** Omit for cross-meeting retrieval. */
+  /** Takes precedence over categoryId/uncategorizedOnly if set. */
   meetingId?: string;
+  /** Ignored if meetingId is set. */
+  categoryId?: string;
+  /** Meetings with no category. Ignored if meetingId or categoryId is set. */
+  uncategorizedOnly?: boolean;
+  // Omit all three for cross-meeting (every meeting) retrieval.
 }
 
 export interface RetrievedChunk {
@@ -35,11 +43,35 @@ export async function retrieveChunks(
   scope: ChatScope,
   limit = 8,
 ): Promise<RetrievedChunk[]> {
-  const vector = await embedQuery(question);
+  let filter: object;
 
-  const filter = scope.meetingId
-    ? { must: [{ key: "meeting_id", match: { value: scope.meetingId } }] }
-    : { must: [{ key: "user_id", match: { value: scope.userId } }] };
+  if (scope.meetingId) {
+    filter = { must: [{ key: "meeting_id", match: { value: scope.meetingId } }] };
+  } else if (scope.categoryId || scope.uncategorizedOnly) {
+    // Category membership is resolved from Postgres at query time rather
+    // than synced into Qdrant payloads — categories get renamed/reassigned,
+    // and that sync path isn't worth the drift risk.
+    const rows = await db
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(
+        scope.categoryId
+          ? and(
+              eq(meetings.userId, scope.userId),
+              eq(meetings.categoryId, scope.categoryId),
+            )
+          : and(eq(meetings.userId, scope.userId), isNull(meetings.categoryId)),
+      );
+    const meetingIds = rows.map((r) => r.id);
+
+    if (meetingIds.length === 0) return [];
+
+    filter = { must: [{ key: "meeting_id", match: { any: meetingIds } }] };
+  } else {
+    filter = { must: [{ key: "user_id", match: { value: scope.userId } }] };
+  }
+
+  const vector = await embedQuery(question);
 
   const results = await qdrant.search(TRANSCRIPT_CHUNKS_COLLECTION, {
     vector,

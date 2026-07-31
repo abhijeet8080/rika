@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
 import { scheduleCalendarBot } from "./client";
+import { extractEventTitle } from "./event-title";
 import { detectPlatform } from "./platform";
 
 // Shared by the manual "Record" button and auto-record (backfill +
@@ -26,12 +27,14 @@ export async function scheduleBotForCalendarEvent(
 
   const meetingUrl =
     typeof event.meeting_url === "string" ? event.meeting_url : "";
+  const title = extractEventTitle(event);
 
   const [meeting] = await db
     .insert(meetings)
     .values({
       userId,
       recallBotId: botId,
+      title,
       platform: meetingUrl ? detectPlatform(meetingUrl) : null,
       meetingUrl,
       calendarEventId: event.id,
@@ -40,7 +43,11 @@ export async function scheduleBotForCalendarEvent(
     })
     .onConflictDoUpdate({
       target: meetings.recallBotId,
-      set: { status: "scheduled", scheduledStart: new Date(event.start_time) },
+      set: {
+        title,
+        status: "scheduled",
+        scheduledStart: new Date(event.start_time),
+      },
     })
     .returning();
 

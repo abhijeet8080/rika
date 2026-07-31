@@ -3,7 +3,7 @@ import { JoinMeetingForm } from "@/components/join-meeting-form";
 import { MeetingList } from "@/components/meeting-list";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { meetings } from "@/lib/db/schema";
+import { categories, meetings } from "@/lib/db/schema";
 
 // Meeting statuses change via webhooks between requests — must not be
 // frozen at build time.
@@ -13,8 +13,19 @@ export default async function MeetingsPage() {
   const userId = await getCurrentUserId();
 
   const allMeetings = await db
-    .select()
+    .select({
+      id: meetings.id,
+      title: meetings.title,
+      platform: meetings.platform,
+      meetingUrl: meetings.meetingUrl,
+      status: meetings.status,
+      scheduledStart: meetings.scheduledStart,
+      startedAt: meetings.startedAt,
+      createdAt: meetings.createdAt,
+      categoryName: categories.name,
+    })
     .from(meetings)
+    .leftJoin(categories, eq(meetings.categoryId, categories.id))
     .where(eq(meetings.userId, userId))
     .orderBy(desc(meetings.createdAt));
 

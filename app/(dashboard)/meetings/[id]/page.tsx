@@ -2,12 +2,18 @@ import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
 import { MeetingWorkspace } from "@/components/meeting-workspace";
 import { StatusBadge } from "@/components/status-badge";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { meetings, participants, transcriptChunks } from "@/lib/db/schema";
+import {
+  categories,
+  meetings,
+  participants,
+  transcriptChunks,
+} from "@/lib/db/schema";
 import { retrieveBot } from "@/lib/recall/client";
 
 // Transcript/participants/recording-url state changes via webhooks —
@@ -37,7 +43,7 @@ export default async function MeetingDetailPage({
     notFound();
   }
 
-  const [meetingParticipants, chunks] = await Promise.all([
+  const [meetingParticipants, chunks, userCategories] = await Promise.all([
     db
       .select()
       .from(participants)
@@ -47,6 +53,10 @@ export default async function MeetingDetailPage({
       .from(transcriptChunks)
       .where(eq(transcriptChunks.meetingId, meeting.id))
       .orderBy(asc(transcriptChunks.startMs)),
+    db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .where(eq(categories.userId, userId)),
   ]);
 
   // Recall's recording URLs are signed/expiring — re-fetch fresh ones for a
@@ -91,6 +101,11 @@ export default async function MeetingDetailPage({
               {meeting.platform ?? "unknown platform"}
               {duration ? ` · ${duration}` : ""}
             </span>
+            <CategorySelect
+              meetingId={meeting.id}
+              initialCategoryId={meeting.categoryId}
+              categories={userCategories}
+            />
           </div>
         </div>
       </div>

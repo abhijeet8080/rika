@@ -11,6 +11,7 @@ export interface MeetingListItem {
   status: string;
   scheduledStart: Date | null;
   startedAt: Date | null;
+  categoryName?: string | null;
 }
 
 function formatWhen(meeting: MeetingListItem): string {
@@ -56,6 +57,12 @@ export function MeetingList({
                 {formatWhen(meeting)} · {meeting.platform ?? "unknown platform"}
               </span>
             </span>
+
+            {meeting.categoryName && (
+              <span className="shrink-0 rounded-full border border-line bg-paper-soft px-2.5 py-1 font-mono text-[11px] text-ink-muted">
+                {meeting.categoryName}
+              </span>
+            )}
 
             <StatusBadge status={meeting.status} />
 

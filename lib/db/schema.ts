@@ -39,6 +39,17 @@ export const calendarConnections = pgTable("calendar_connections", {
     .defaultNow(),
 });
 
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const meetings = pgTable("meetings", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -46,6 +57,11 @@ export const meetings = pgTable("meetings", {
     .references(() => users.id),
   recallBotId: text("recall_bot_id").notNull().unique(),
   title: text("title"),
+  // One category per meeting (confirmed, not multi-tag). Deleting a
+  // category uncategorizes its meetings rather than cascading/blocking.
+  categoryId: uuid("category_id").references(() => categories.id, {
+    onDelete: "set null",
+  }),
   platform: text("platform"), // 'zoom' | 'google_meet' | 'teams'
   meetingUrl: text("meeting_url").notNull(),
   calendarEventId: text("calendar_event_id"),

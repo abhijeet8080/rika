@@ -52,26 +52,85 @@ Zoom/Meet/**Teams**, rely on Recall's hosted media (no self-storage of recording
 
 ## Phase 2 — Live In-Meeting Q&A + Multi-User
 
-Deferred until Phase 1 is solid. Each item builds on Phase 1 infra (same `bot_id`,
-same webhook route) rather than replacing it.
+Each item builds on Phase 1 infra (same `bot_id`, same webhook route) rather
+than replacing it. Status reflects what's actually shipped, not the original
+order below.
 
-1. **Real-time transcript ingestion** — subscribe to `transcript.data` /
-   `transcript.partial_data` webhooks during an active call; stream partial transcript to a
-   live dashboard view.
-2. **In-meeting chat Q&A agent** — detect a directed question in the live transcript/chat,
-   run RAG against transcript-so-far + past meetings, respond via Recall's
-   `output_media.chat` (bot posts back into Zoom/Meet/Teams chat). Needs a "is this message
-   for the bot" heuristic to avoid answering unrelated chatter.
-3. **Multi-user auth** — introduce Clerk (or similar); every table already has `user_id`,
-   so this is scoping existing queries + adding login, not a schema rewrite.
-4. **Outlook/Microsoft Calendar support** — extend Calendar V2 connections beyond Google
-   for teams that live in Microsoft 365.
-5. **Live meeting dashboard** — streaming UI (websocket/SSE) showing an in-progress
-   meeting's transcript and any live Q&A exchanges as they happen.
-6. **(Stretch, not scoped yet)** Spoken/voice agent responses — Recall's real-time
-   transcript webhooks are explicitly not meant for conversational agents; a talking bot
-   would need `output_media` with a voice model. Only pursue if chat-based Q&A (item 2)
-   proves insufficient.
+1. **Real-time transcript ingestion** — not started. Subscribe to
+   `transcript.data` / `transcript.partial_data` webhooks during an active
+   call; stream partial transcript to a live dashboard view.
+2. **In-meeting chat Q&A agent** — not started. Detect a directed question
+   in the live transcript/chat, run RAG against transcript-so-far + past
+   meetings, respond via Recall's `output_media.chat`. Needs a "is this
+   message for the bot" heuristic to avoid answering unrelated chatter.
+3. **Multi-user auth** — ✅ done. Clerk, resource-based auth (`auth.protect()`
+   inside `getCurrentUserId()`, not middleware path-matching — Clerk
+   deprecated `createRouteMatcher` mid-build). JIT-links a Clerk account to
+   an existing pre-auth `users` row by email on first sign-in.
+4. **Outlook/Microsoft Calendar support** — ✅ code done, ⏳ not configured.
+   `app/api/calendar/outlook/{connect,callback}/route.ts` built and
+   symmetric with Google's; `MICROSOFT_OAUTH_CLIENT_ID`/`SECRET` still need
+   an Azure Portal app registration before it's live.
+5. **Live meeting dashboard** — not started. Streaming UI (websocket/SSE)
+   showing an in-progress meeting's transcript and any live Q&A exchanges.
+6. **(Stretch, not scoped yet)** Spoken/voice agent responses — only if
+   chat-based Q&A (item 2) proves insufficient.
+
+**Also shipped, not in the original Phase 2 list:**
+- **Multiple calendar accounts per provider** — `calendar_connections`
+  dedupes on `(userId, provider, email)`; connect flow forces Google/
+  Microsoft's account picker (`prompt=select_account`) so adding a second
+  account doesn't silently re-auth the first.
+- **Auto-record toggle** — per-provider (not per-account) switch on
+  `/settings/calendar`; backfills currently-upcoming events immediately on
+  enable, and auto-schedules future invites via the `calendar.sync_events`
+  webhook once that webhook is actually registered with Recall (see
+  Outstanding below).
+- **Meeting titles** — pulled from the calendar event's native title
+  (Google `summary` / Microsoft `subject`) at schedule time, or from
+  Recall's `meeting_metadata` post-meeting for "join now" bots with no
+  calendar event to draw from.
+
+**Outstanding, blocking full automation:**
+- Recall webhook URL still isn't registered in Recall's dashboard (needs a
+  public URL — tunnel or real deployment). Until then: completed meetings
+  need manual reprocessing, and auto-record only catches what exists at
+  toggle-on time, not new invites arriving after.
+
+---
+
+## Phase 2.5 — Meeting Categories + Category-Scoped Chat
+
+Full design in the approved plan at
+`/Users/abhijeet/.claude/plans/resilient-sauteeing-sedgewick.md`. Chat
+currently scopes to one meeting or literally all of them — this adds a
+middle tier so a sequence of related meetings (e.g. recurring freelance
+client calls) keeps its own context instead of mixing with unrelated ones.
+One category per meeting (confirmed with user, not multi-tag).
+
+1. **Schema** — `categories` table (`id`, `userId`, `name`, `createdAt`);
+   nullable `meetings.categoryId` FK, `onDelete: "set null"`.
+2. **Category CRUD** — `app/api/categories/route.ts` (GET list w/ counts,
+   POST create), `app/api/categories/[id]/route.ts` (DELETE).
+3. **Meeting → category assignment** — `app/api/meetings/[id]/route.ts`
+   (PATCH `categoryId`); inline selector on the meeting detail page, no
+   separate management page for v1.
+4. **Category-scoped retrieval** — `lib/ai/rag.ts`'s `ChatScope` gains
+   `categoryId`; resolves category → member meeting IDs from Postgres at
+   query time, filters Qdrant with a `match.any` on `meeting_id` (not
+   synced into vector payloads — categories get renamed/reassigned, and
+   that sync path isn't worth the drift risk).
+5. **Chat page redesign** — `/chat` becomes a picker (All meetings /
+   Uncategorized / each category) driving the existing `ChatPanel`, which
+   just grows a `categoryId` prop alongside `meetingId`.
+6. **Visibility** — category badge on `MeetingList` rows.
+
+**Verification gates:**
+- Automatable: assign a category to a real meeting with existing
+  transcript chunks, confirm `retrieveChunks` with that `categoryId`
+  returns only that meeting's chunks.
+- Needs user: create categories, assign real meetings, confirm the badge
+  and the `/chat` picker both work end-to-end.
 
 ---
 

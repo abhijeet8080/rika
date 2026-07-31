@@ -19,7 +19,10 @@ export interface RecallBotStatusChange {
 }
 
 export interface RecallMediaShortcut {
-  data?: { download_url?: string };
+  // `download_url` for media shortcuts (transcript, video/audio mixed);
+  // `title` is specific to meeting_metadata — confirmed live, comes back
+  // null for Google Meet, may be populated for Zoom.
+  data?: { download_url?: string; title?: string | null };
   status?: { code?: string };
 }
 
@@ -138,6 +141,10 @@ export interface RecallCalendarEvent {
   is_deleted: boolean;
   meeting_url?: string | null;
   bots?: RecallCalendarEventBot[];
+  // Provider-native event payload — where the title actually lives
+  // (Google: `summary`, Microsoft Graph: `subject`). Confirmed live for
+  // Google; no top-level title field exists outside this.
+  raw?: unknown;
   [key: string]: unknown;
 }
 

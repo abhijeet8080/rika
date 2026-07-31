@@ -10,6 +10,7 @@ interface CalendarEvent {
   start_time: string;
   end_time: string;
   meeting_url?: string | null;
+  title: string | null;
   bots?: { bot_id: string }[];
   is_deleted: boolean;
   provider: string;
@@ -134,19 +135,20 @@ function CalendarEventsListContent({
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-sm text-ink">
+                  <p className="truncate text-sm text-ink">
+                    {event.title ?? "Untitled meeting"}
+                  </p>
+                  <p className="truncate font-mono text-[12px] text-ink-muted">
                     {new Date(event.start_time).toLocaleString(undefined, {
                       month: "short",
                       day: "numeric",
                       hour: "numeric",
                       minute: "2-digit",
-                    })}
-                  </p>
-                  <p className="truncate font-mono text-[12px] text-ink-muted">
+                    })}{" "}
+                    ·{" "}
                     {event.accountEmail ??
                       PROVIDER_LABELS[event.provider] ??
-                      event.provider}{" "}
-                    · {event.meeting_url ?? "No meeting link"}
+                      event.provider}
                   </p>
                 </div>
                 <button

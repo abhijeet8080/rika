@@ -10,13 +10,24 @@ import { getCurrentUserId } from "@/lib/auth";
 export const maxDuration = 30;
 
 export async function POST(request: Request) {
-  const { messages, meetingId }: { messages: UIMessage[]; meetingId?: string } =
-    await request.json();
+  const {
+    messages,
+    meetingId,
+    categoryId,
+    uncategorizedOnly,
+  }: {
+    messages: UIMessage[];
+    meetingId?: string;
+    categoryId?: string;
+    uncategorizedOnly?: boolean;
+  } = await request.json();
 
   const userId = await getCurrentUserId();
   const result = await answerQuestion(await convertToModelMessages(messages), {
     userId,
     meetingId,
+    categoryId,
+    uncategorizedOnly,
   });
 
   return createUIMessageStreamResponse({

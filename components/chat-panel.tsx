@@ -6,12 +6,24 @@ import { ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 
-export function ChatPanel({ meetingId }: { meetingId?: string }) {
+// The transport is only built once, on mount — if the scope needs to
+// change (e.g. the user picks a different category), remount this
+// component with a `key` that changes rather than expecting props here to
+// update it live.
+export function ChatPanel({
+  meetingId,
+  categoryId,
+  uncategorizedOnly,
+}: {
+  meetingId?: string;
+  categoryId?: string;
+  uncategorizedOnly?: boolean;
+}) {
   const [transport] = useState(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { meetingId },
+        body: { meetingId, categoryId, uncategorizedOnly },
       }),
   );
   const { messages, sendMessage, status } = useChat({ transport });
@@ -30,8 +42,8 @@ export function ChatPanel({ meetingId }: { meetingId?: string }) {
     <div className="flex max-w-2xl flex-col gap-4">
       {messages.length === 0 ? (
         <EmptyState>
-          {meetingId
-            ? "Ask something about this meeting to get started."
+          {meetingId || categoryId || uncategorizedOnly
+            ? "Ask something to get started."
             : "Ask about any of your meetings to get started."}
         </EmptyState>
       ) : (
@@ -74,7 +86,9 @@ export function ChatPanel({ meetingId }: { meetingId?: string }) {
           placeholder={
             meetingId
               ? "Ask about this meeting..."
-              : "Ask about any of your meetings..."
+              : categoryId || uncategorizedOnly
+                ? "Ask about these meetings..."
+                : "Ask about any of your meetings..."
           }
           className="flex-1 rounded-full border border-line bg-card px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-ink/30 disabled:opacity-50"
         />
