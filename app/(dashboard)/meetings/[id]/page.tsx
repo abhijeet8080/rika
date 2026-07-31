@@ -102,6 +102,7 @@ export default async function MeetingDetailPage({
               {duration ? ` · ${duration}` : ""}
             </span>
             <CategorySelect
+              mode="bound"
               meetingId={meeting.id}
               initialCategoryId={meeting.categoryId}
               categories={userCategories}

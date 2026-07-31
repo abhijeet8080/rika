@@ -31,3 +31,11 @@ export async function upsertTranscriptChunks(
     })),
   });
 }
+
+export async function deleteTranscriptChunksForMeeting(
+  meetingId: string,
+): Promise<void> {
+  await qdrant.delete(TRANSCRIPT_CHUNKS_COLLECTION, {
+    filter: { must: [{ key: "meeting_id", match: { value: meetingId } }] },
+  });
+}

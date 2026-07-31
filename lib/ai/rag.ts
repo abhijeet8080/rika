@@ -1,5 +1,5 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
-import { streamText, type ModelMessage } from "ai";
+import { generateText, streamText, type ModelMessage } from "ai";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
@@ -27,7 +27,8 @@ export interface ChatScope {
   categoryId?: string;
   /** Meetings with no category. Ignored if meetingId or categoryId is set. */
   uncategorizedOnly?: boolean;
-  // Omit all three for cross-meeting (every meeting) retrieval.
+  // At least one of meetingId/categoryId/uncategorizedOnly is required —
+  // there is no unscoped "every meeting" retrieval.
 }
 
 export interface RetrievedChunk {
@@ -68,7 +69,9 @@ export async function retrieveChunks(
 
     filter = { must: [{ key: "meeting_id", match: { any: meetingIds } }] };
   } else {
-    filter = { must: [{ key: "user_id", match: { value: scope.userId } }] };
+    throw new Error(
+      "retrieveChunks requires meetingId, categoryId, or uncategorizedOnly",
+    );
   }
 
   const vector = await embedQuery(question);
@@ -139,4 +142,29 @@ export async function answerQuestion(
       `Transcript excerpts:\n${context}`,
     messages,
   });
+}
+
+// Non-streaming variant for the live in-meeting chat handler, which needs
+// a single plain-text reply to hand to Recall's send-chat-message
+// endpoint rather than a UI stream.
+export async function answerQuestionText(
+  question: string,
+  scope: ChatScope,
+): Promise<string> {
+  const chunks = await retrieveChunks(question, scope);
+  const context = buildContext(chunks);
+
+  const result = await generateText({
+    model: getChatModel(),
+    system:
+      "You answer questions about meeting transcripts using only the excerpts " +
+      "provided below. This reply is being posted directly into a live meeting's " +
+      "chat panel, so keep it to 1-3 short sentences — no markdown, no citation " +
+      "markers. If the excerpts don't contain the answer, say so plainly instead " +
+      "of guessing.\n\n" +
+      `Transcript excerpts:\n${context}`,
+    prompt: question,
+  });
+
+  return result.text;
 }

@@ -6,16 +6,27 @@ export async function POST(
   { params }: RouteContext<"/api/calendar/events/[id]/schedule">,
 ) {
   const { id } = await params;
-  const { icalUid } = await request.json();
+  const { icalUid, categoryId } = await request.json();
 
   if (!icalUid || typeof icalUid !== "string") {
     return Response.json({ error: "icalUid is required" }, { status: 400 });
+  }
+  if (categoryId !== undefined && categoryId !== null && typeof categoryId !== "string") {
+    return Response.json(
+      { error: "categoryId must be a string or null" },
+      { status: 400 },
+    );
   }
 
   const userId = await getCurrentUserId();
 
   try {
-    const meeting = await scheduleBotForCalendarEvent(userId, id, icalUid);
+    const meeting = await scheduleBotForCalendarEvent(
+      userId,
+      id,
+      icalUid,
+      categoryId,
+    );
     return Response.json({ meeting }, { status: 201 });
   } catch (err) {
     return Response.json(

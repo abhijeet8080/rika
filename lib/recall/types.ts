@@ -182,3 +182,26 @@ export const RecallCalendarWebhookPayloadSchema = z.object({
 export type RecallCalendarWebhookPayload = z.infer<
   typeof RecallCalendarWebhookPayloadSchema
 >;
+
+// Real-time webhook fired when a participant sends a message in the
+// meeting's chat panel (config: recording_config.realtime_endpoints).
+// Confirmed live shape — note the doubly-nested `data.data.data`, same
+// nesting style as RecallBotWebhookPayloadSchema above.
+export const RecallChatMessageWebhookPayloadSchema = z.object({
+  event: z.literal("participant_events.chat_message"),
+  data: z.object({
+    bot: z.object({ id: z.string() }),
+    data: z.object({
+      participant: z.object({
+        id: z.number(),
+        name: z.string().nullable(),
+      }),
+      data: z.object({
+        text: z.string(),
+      }),
+    }),
+  }),
+});
+export type RecallChatMessageWebhookPayload = z.infer<
+  typeof RecallChatMessageWebhookPayloadSchema
+>;

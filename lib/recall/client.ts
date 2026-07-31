@@ -12,17 +12,33 @@ import type {
 
 // Recall's own defaults capture mixed video but NOT transcript or mixed
 // audio — both must be explicitly requested or they come back `null`.
-const DEFAULT_RECORDING_CONFIG = {
-  audio_mixed_mp3: {},
-  transcript: {
-    provider: {
-      recallai_streaming: {
-        mode: "prioritize_accuracy",
-        language_code: "auto",
+// A function (not a module-level constant) so reading env.APP_BASE_URL
+// doesn't happen at import time — same reasoning as the lazy chat model
+// in lib/ai/rag.ts.
+function getDefaultRecordingConfig() {
+  return {
+    audio_mixed_mp3: {},
+    transcript: {
+      provider: {
+        recallai_streaming: {
+          mode: "prioritize_accuracy",
+          language_code: "auto",
+        },
       },
     },
-  },
-};
+    // Routes live in-meeting chat messages to the same webhook endpoint
+    // already registered with Recall (dispatch is by `event` name, see
+    // app/api/webhooks/recall/route.ts) — lets someone type "@Rika ..."
+    // in the meeting chat and get a category-scoped answer back.
+    realtime_endpoints: [
+      {
+        type: "webhook",
+        url: `${env.APP_BASE_URL}/api/webhooks/recall`,
+        events: ["participant_events.chat_message"],
+      },
+    ],
+  };
+}
 
 function apiUrl(version: "v1" | "v2", path: string) {
   return `https://${env.RECALL_API_REGION}.recall.ai/api/${version}${path}`;
@@ -57,13 +73,46 @@ export async function createBot(params: CreateBotParams): Promise<RecallBot> {
       bot_name: params.botName,
       join_at: params.joinAt,
       metadata: params.metadata,
-      recording_config: params.recordingConfig ?? DEFAULT_RECORDING_CONFIG,
+      recording_config: params.recordingConfig ?? getDefaultRecordingConfig(),
     }),
   });
 }
 
 export async function retrieveBot(botId: string): Promise<RecallBot> {
   return recallFetch<RecallBot>("v1", `/bot/${botId}/`);
+}
+
+// Only works on a bot that hasn't joined a call yet (405 otherwise) — a
+// separate raw fetch from recallFetch since a successful delete returns
+// 204 with no body to parse.
+export async function cancelScheduledBot(botId: string): Promise<void> {
+  const res = await fetch(apiUrl("v1", `/bot/${botId}/`), {
+    method: "DELETE",
+    headers: { Authorization: `Token ${env.RECALL_API_KEY}` },
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Recall API ${res.status} DELETE /bot/${botId}/: ${await res.text()}`,
+    );
+  }
+}
+
+// Pulls the bot out of an already-active call — irreversible, per Recall.
+export async function removeBotFromCall(botId: string): Promise<void> {
+  await recallFetch("v1", `/bot/${botId}/leave_call/`, { method: "POST" });
+}
+
+// Causes the bot to post a message into the meeting's chat. Platform
+// limits vary (Google Meet: 500 chars, Zoom/Teams: 4096) — callers are
+// expected to truncate before calling this.
+export async function sendChatMessage(
+  botId: string,
+  message: string,
+): Promise<void> {
+  await recallFetch("v1", `/bot/${botId}/send_chat_message/`, {
+    method: "POST",
+    body: JSON.stringify({ message, to: "everyone" }),
+  });
 }
 
 export async function createCalendar(
@@ -121,7 +170,7 @@ export async function scheduleCalendarBot(
           bot_name: botName,
           join_at: joinAt,
           metadata,
-          recording_config: recordingConfig ?? DEFAULT_RECORDING_CONFIG,
+          recording_config: recordingConfig ?? getDefaultRecordingConfig(),
           ...rest,
         },
       }),

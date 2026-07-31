@@ -2,7 +2,9 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
+import { useCategories } from "@/lib/hooks/use-categories";
 
 interface CalendarEvent {
   id: string;
@@ -36,6 +38,18 @@ function CalendarEventsListContent({
   const [loaded, setLoaded] = useState(!hasConnections);
   const [schedulingId, setSchedulingId] = useState<string | null>(null);
   const [recordErrors, setRecordErrors] = useState<Record<string, string>>({});
+  const [selectedCategory, setSelectedCategory] = useState<
+    Record<string, string | null>
+  >({});
+  const { categories } = useCategories();
+
+  // Derived, not synced via effect: if a selection points at a category
+  // deleted (elsewhere) since it was picked, treat it as unset rather
+  // than submitting a category id that no longer exists.
+  function selectedCategoryFor(eventId: string): string | null {
+    const id = selectedCategory[eventId];
+    return id && categories.some((c) => c.id === id) ? id : null;
+  }
 
   useEffect(() => {
     if (!hasConnections) return;
@@ -77,7 +91,10 @@ function CalendarEventsListContent({
       res = await fetch(`/api/calendar/events/${event.id}/schedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ icalUid: event.ical_uid }),
+        body: JSON.stringify({
+          icalUid: event.ical_uid,
+          categoryId: selectedCategoryFor(event.id),
+        }),
       });
     } catch {
       setSchedulingId(null);
@@ -151,21 +168,40 @@ function CalendarEventsListContent({
                       event.provider}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleRecord(event)}
-                  disabled={
-                    !event.meeting_url ||
-                    !!event.bots?.length ||
-                    schedulingId === event.id
-                  }
-                  className="shrink-0 rounded-full border border-line px-4 py-1.5 text-sm text-ink transition-colors hover:border-ink/30 disabled:opacity-50"
-                >
-                  {event.bots?.length
-                    ? "Recording"
-                    : schedulingId === event.id
-                      ? "Scheduling…"
-                      : "Record"}
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  {!event.bots?.length && (
+                    <CategorySelect
+                      // Remount when the category list changes (created/
+                      // deleted elsewhere) — CategorySelect mirrors
+                      // `categories` into local state on mount only.
+                      key={categories.length}
+                      mode="controlled"
+                      categories={categories}
+                      value={selectedCategoryFor(event.id)}
+                      onChange={(categoryId) =>
+                        setSelectedCategory((prev) => ({
+                          ...prev,
+                          [event.id]: categoryId,
+                        }))
+                      }
+                    />
+                  )}
+                  <button
+                    onClick={() => handleRecord(event)}
+                    disabled={
+                      !event.meeting_url ||
+                      !!event.bots?.length ||
+                      schedulingId === event.id
+                    }
+                    className="shrink-0 rounded-full border border-line px-4 py-1.5 text-sm text-ink transition-colors hover:border-ink/30 disabled:opacity-50"
+                  >
+                    {event.bots?.length
+                      ? "Recording"
+                      : schedulingId === event.id
+                        ? "Scheduling…"
+                        : "Record"}
+                  </button>
+                </div>
               </div>
               {recordErrors[event.id] && (
                 <p className="font-mono text-[12px] text-rec">

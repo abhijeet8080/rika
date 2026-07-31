@@ -3,11 +3,13 @@ import { after } from "next/server";
 import { db } from "@/lib/db/client";
 import { calendarConnections } from "@/lib/db/schema";
 import { listCalendarEvents, retrieveCalendar } from "@/lib/recall/client";
+import { handleLiveChatMessage } from "@/lib/recall/live-chat";
 import { markBotFatal, processCompletedBot } from "@/lib/recall/process-meeting";
 import { scheduleBotForCalendarEvent } from "@/lib/recall/schedule-event";
 import {
   RecallBotWebhookPayloadSchema,
   RecallCalendarWebhookPayloadSchema,
+  RecallChatMessageWebhookPayloadSchema,
 } from "@/lib/recall/types";
 import { verifyRecallWebhookSignature } from "@/lib/recall/verify-webhook";
 
@@ -95,6 +97,17 @@ export async function POST(request: Request) {
         }),
       );
     }
+  } else if (eventName === "participant_events.chat_message") {
+    const payload = RecallChatMessageWebhookPayloadSchema.parse(parsed);
+    const botId = payload.data.bot.id;
+    const { participant, data } = payload.data.data;
+    after(() =>
+      handleLiveChatMessage(botId, participant.name, data.text).catch(
+        (err) => {
+          console.error(`Failed to handle live chat message for bot ${botId}`, err);
+        },
+      ),
+    );
   }
 
   return Response.json({ received: true });

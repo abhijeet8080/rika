@@ -43,4 +43,11 @@ export const env = {
   get MICROSOFT_OAUTH_CLIENT_SECRET() {
     return required("MICROSOFT_OAUTH_CLIENT_SECRET");
   },
+  // Absolute origin (no trailing slash) — needed to hand Recall an
+  // absolute webhook URL for `realtime_endpoints`, including from
+  // contexts with no incoming `Request` to derive it from (e.g. the
+  // calendar.sync_events webhook path).
+  get APP_BASE_URL() {
+    return required("APP_BASE_URL");
+  },
 };

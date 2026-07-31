@@ -12,22 +12,27 @@ export const dynamic = "force-dynamic";
 export default async function MeetingsPage() {
   const userId = await getCurrentUserId();
 
-  const allMeetings = await db
-    .select({
-      id: meetings.id,
-      title: meetings.title,
-      platform: meetings.platform,
-      meetingUrl: meetings.meetingUrl,
-      status: meetings.status,
-      scheduledStart: meetings.scheduledStart,
-      startedAt: meetings.startedAt,
-      createdAt: meetings.createdAt,
-      categoryName: categories.name,
-    })
-    .from(meetings)
-    .leftJoin(categories, eq(meetings.categoryId, categories.id))
-    .where(eq(meetings.userId, userId))
-    .orderBy(desc(meetings.createdAt));
+  const [allMeetings, userCategories] = await Promise.all([
+    db
+      .select({
+        id: meetings.id,
+        title: meetings.title,
+        platform: meetings.platform,
+        meetingUrl: meetings.meetingUrl,
+        status: meetings.status,
+        scheduledStart: meetings.scheduledStart,
+        startedAt: meetings.startedAt,
+        createdAt: meetings.createdAt,
+        categoryId: meetings.categoryId,
+      })
+      .from(meetings)
+      .where(eq(meetings.userId, userId))
+      .orderBy(desc(meetings.createdAt)),
+    db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .where(eq(categories.userId, userId)),
+  ]);
 
   const failed = allMeetings.filter((m) => m.status.startsWith("fatal"));
   const past = allMeetings.filter((m) => m.status === "done");
@@ -56,6 +61,7 @@ export default async function MeetingsPage() {
         </h2>
         <MeetingList
           meetings={upcoming}
+          categories={userCategories}
           emptyLabel="Nothing scheduled — join a meeting or connect your calendar."
         />
       </section>
@@ -64,7 +70,11 @@ export default async function MeetingsPage() {
         <h2 className="font-mono text-[13px] tracking-wider text-ink-muted uppercase">
           Past
         </h2>
-        <MeetingList meetings={past} emptyLabel="No completed meetings yet." />
+        <MeetingList
+          meetings={past}
+          categories={userCategories}
+          emptyLabel="No completed meetings yet."
+        />
       </section>
 
       {failed.length > 0 && (
@@ -72,7 +82,7 @@ export default async function MeetingsPage() {
           <h2 className="font-mono text-[13px] tracking-wider text-rec uppercase">
             Failed to join
           </h2>
-          <MeetingList meetings={failed} emptyLabel="" />
+          <MeetingList meetings={failed} categories={userCategories} emptyLabel="" />
         </section>
       )}
     </div>

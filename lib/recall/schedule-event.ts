@@ -12,6 +12,7 @@ export async function scheduleBotForCalendarEvent(
   userId: string,
   eventId: string,
   icalUid: string,
+  categoryId?: string | null,
 ) {
   const event = await scheduleCalendarBot(eventId, {
     deduplicationKey: icalUid,
@@ -35,6 +36,7 @@ export async function scheduleBotForCalendarEvent(
       userId,
       recallBotId: botId,
       title,
+      categoryId: categoryId ?? null,
       platform: meetingUrl ? detectPlatform(meetingUrl) : null,
       meetingUrl,
       calendarEventId: event.id,
@@ -47,6 +49,9 @@ export async function scheduleBotForCalendarEvent(
         title,
         status: "scheduled",
         scheduledStart: new Date(event.start_time),
+        // Only auto-record/backfill call sites omit categoryId — don't
+        // let a re-sync silently clear a category picked at schedule time.
+        ...(categoryId !== undefined ? { categoryId } : {}),
       },
     })
     .returning();

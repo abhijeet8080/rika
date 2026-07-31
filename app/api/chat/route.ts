@@ -22,6 +22,13 @@ export async function POST(request: Request) {
     uncategorizedOnly?: boolean;
   } = await request.json();
 
+  if (!meetingId && !categoryId && !uncategorizedOnly) {
+    return Response.json(
+      { error: "One of meetingId, categoryId, or uncategorizedOnly is required" },
+      { status: 400 },
+    );
+  }
+
   const userId = await getCurrentUserId();
   const result = await answerQuestion(await convertToModelMessages(messages), {
     userId,
