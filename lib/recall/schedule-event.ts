@@ -2,6 +2,7 @@ import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
 import { scheduleCalendarBot } from "./client";
 import { extractEventTitle } from "./event-title";
+import { BOT_DISPLAY_NAME } from "./live-chat";
 import { detectPlatform } from "./platform";
 
 // Shared by the manual "Record" button and auto-record (backfill +
@@ -22,7 +23,7 @@ export async function scheduleBotForCalendarEvent(
 
   const event = await scheduleCalendarBot(eventId, {
     deduplicationKey: icalUid,
-    botConfig: { botName: "Rika", recordVideo, recordAudio },
+    botConfig: { botName: BOT_DISPLAY_NAME, recordVideo, recordAudio },
   });
 
   // Recall returns scheduled bots as a `bots` array (confirmed live) —

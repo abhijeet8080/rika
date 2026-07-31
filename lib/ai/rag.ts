@@ -8,9 +8,14 @@ import { env } from "@/lib/env";
 import { qdrant, TRANSCRIPT_CHUNKS_COLLECTION } from "@/lib/vector/client";
 import { embedQuery } from "./embeddings";
 
+// Not imported from lib/recall/live-chat.ts's BOT_DISPLAY_NAME (that would
+// be a circular import — live-chat.ts already imports from this file) and
+// doesn't need exact-match consistency with it anyway, since this is just
+// descriptive text for the model, not a value compared anywhere.
 const ASSISTANT_SYSTEM_PROMPT =
-  "You are Rika, a helpful AI assistant. Answer normally and helpfully — " +
-  "this question doesn't need meeting transcript context.";
+  "You are Rika (Abhijeet's Assistant), a helpful AI assistant. Answer " +
+  "normally and helpfully — this question doesn't need meeting transcript " +
+  "context.";
 
 const NeedsContextSchema = z.object({
   needsMeetingContext: z

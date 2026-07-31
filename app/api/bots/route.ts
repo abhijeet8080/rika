@@ -2,6 +2,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
 import { createBot } from "@/lib/recall/client";
+import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
 import { detectPlatform } from "@/lib/recall/platform";
 
 export async function POST(request: Request) {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const userId = await getCurrentUserId();
   const bot = await createBot({
     meetingUrl,
-    botName: "Rika",
+    botName: BOT_DISPLAY_NAME,
     recordVideo,
     recordAudio,
   });

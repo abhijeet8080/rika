@@ -4,7 +4,11 @@ import { db } from "@/lib/db/client";
 import { liveChatMessages, meetings } from "@/lib/db/schema";
 import { sendChatMessage } from "./client";
 
-const BOT_DISPLAY_NAME = "Rika";
+// Single source of truth for the bot's meeting participant name — must
+// match `botName` passed to createBot/scheduleCalendarBot exactly, or
+// the self-message guard below breaks and Rika starts replying to
+// herself in a loop.
+export const BOT_DISPLAY_NAME = "Rika(Abhijeet's Assistant)";
 
 // Directed at Rika if the message starts with her name, optionally
 // preceded by "@" and followed by punctuation/whitespace before the
@@ -52,7 +56,7 @@ async function getRecentHistory(meetingId: string): Promise<string | null> {
     .reverse()
     .map((r) =>
       r.role === "assistant"
-        ? `Rika: ${r.text}`
+        ? `${BOT_DISPLAY_NAME}: ${r.text}`
         : `${r.participantName ?? "Someone"}: ${r.text}`,
     )
     .join("\n");
