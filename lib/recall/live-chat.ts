@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { answerQuestionText } from "@/lib/ai/rag";
 import { db } from "@/lib/db/client";
-import { meetings } from "@/lib/db/schema";
+import { liveChatMessages, meetings } from "@/lib/db/schema";
 import { sendChatMessage } from "./client";
 
 const BOT_DISPLAY_NAME = "Rika";
@@ -18,6 +18,11 @@ const CHAT_CHAR_LIMITS: Record<string, number> = {
 };
 const DEFAULT_CHAT_CHAR_LIMIT = 500;
 
+// Each webhook delivery is a separate serverless invocation with no
+// shared memory, so recent conversation context is read back from
+// live_chat_messages rather than held in process.
+const HISTORY_LIMIT = 10;
+
 function extractQuestion(text: string): string | null {
   const match = TRIGGER_PATTERN.exec(text.trim());
   const question = match?.[1]?.trim();
@@ -27,6 +32,30 @@ function extractQuestion(text: string): string | null {
 function truncate(text: string, limit: number): string {
   if (text.length <= limit) return text;
   return `${text.slice(0, limit - 1)}…`;
+}
+
+async function getRecentHistory(meetingId: string): Promise<string | null> {
+  const rows = await db
+    .select({
+      role: liveChatMessages.role,
+      participantName: liveChatMessages.participantName,
+      text: liveChatMessages.text,
+    })
+    .from(liveChatMessages)
+    .where(eq(liveChatMessages.meetingId, meetingId))
+    .orderBy(desc(liveChatMessages.createdAt))
+    .limit(HISTORY_LIMIT);
+
+  if (rows.length === 0) return null;
+
+  return rows
+    .reverse()
+    .map((r) =>
+      r.role === "assistant"
+        ? `Rika: ${r.text}`
+        : `${r.participantName ?? "Someone"}: ${r.text}`,
+    )
+    .join("\n");
 }
 
 export async function handleLiveChatMessage(
@@ -44,6 +73,7 @@ export async function handleLiveChatMessage(
 
   const [meeting] = await db
     .select({
+      id: meetings.id,
       userId: meetings.userId,
       categoryId: meetings.categoryId,
       platform: meetings.platform,
@@ -53,15 +83,27 @@ export async function handleLiveChatMessage(
 
   if (!meeting) return;
 
-  const answer = await answerQuestionText(question, {
-    userId: meeting.userId,
-    ...(meeting.categoryId
-      ? { categoryId: meeting.categoryId }
-      : { uncategorizedOnly: true }),
-  });
+  const conversationHistory = await getRecentHistory(meeting.id);
+
+  const answer = await answerQuestionText(
+    question,
+    {
+      userId: meeting.userId,
+      ...(meeting.categoryId
+        ? { categoryId: meeting.categoryId }
+        : { uncategorizedOnly: true }),
+    },
+    { conversationHistory },
+  );
 
   const limit =
     CHAT_CHAR_LIMITS[meeting.platform ?? ""] ?? DEFAULT_CHAT_CHAR_LIMIT;
+  const truncated = truncate(answer, limit);
 
-  await sendChatMessage(botId, truncate(answer, limit));
+  await db.insert(liveChatMessages).values([
+    { meetingId: meeting.id, role: "user", participantName, text: question },
+    { meetingId: meeting.id, role: "assistant", text: truncated },
+  ]);
+
+  await sendChatMessage(botId, truncated);
 }

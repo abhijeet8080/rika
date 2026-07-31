@@ -102,3 +102,20 @@ export const transcriptChunks = pgTable("transcript_chunks", {
     .notNull()
     .defaultNow(),
 });
+
+// Q&A turns from the live in-meeting "@Rika" chat — each webhook delivery
+// is a separate serverless invocation with no shared memory, so recent
+// conversation context has to be persisted here rather than held in
+// process. Read as a short, capped window (last 10), not paginated.
+export const liveChatMessages = pgTable("live_chat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  meetingId: uuid("meeting_id")
+    .notNull()
+    .references(() => meetings.id),
+  role: text("role").notNull(), // 'user' | 'assistant'
+  participantName: text("participant_name"),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

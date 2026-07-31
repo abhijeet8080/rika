@@ -23,7 +23,12 @@ const NeedsContextSchema = z.object({
 // Cheap classification pass before doing any embedding/retrieval — greetings
 // and general questions ("hii", "what's 2+2") shouldn't be forced through
 // the RAG pipeline and answered with "no relevant excerpts found".
-async function needsMeetingContext(question: string): Promise<boolean> {
+// `conversationHistory`, when given, lets a bare follow-up ("and pricing?")
+// classify correctly instead of looking like unrelated small talk on its own.
+async function needsMeetingContext(
+  question: string,
+  conversationHistory?: string | null,
+): Promise<boolean> {
   if (!question.trim()) return false;
 
   try {
@@ -34,8 +39,12 @@ async function needsMeetingContext(question: string): Promise<boolean> {
         "Decide whether answering the user's message requires searching " +
         "their past meeting transcripts. Say true for anything asking what " +
         "was said, decided, or discussed in a meeting, or requesting a " +
-        "summary/recap. Say false for greetings, small talk, or general " +
-        "questions unrelated to their meetings.",
+        "summary/recap — including a short follow-up that only makes sense " +
+        "in light of the conversation so far. Say false for greetings, " +
+        "small talk, or general questions unrelated to their meetings." +
+        (conversationHistory
+          ? `\n\nRecent conversation:\n${conversationHistory}`
+          : ""),
       prompt: question,
     });
     return result.object.needsMeetingContext;
@@ -195,19 +204,28 @@ export async function answerQuestion(
 
 // Non-streaming variant for the live in-meeting chat handler, which needs
 // a single plain-text reply to hand to Recall's send-chat-message
-// endpoint rather than a UI stream.
+// endpoint rather than a UI stream. `conversationHistory` is the last ~10
+// turns of "@Rika" exchanges in this same live meeting (see
+// lib/recall/live-chat.ts) — there's no multi-turn `messages` array here
+// like the streaming web-chat path, so it's folded into the system prompt
+// instead of separate role-tagged messages.
 export async function answerQuestionText(
   question: string,
   scope: ChatScope,
+  options?: { conversationHistory?: string | null },
 ): Promise<string> {
+  const conversationHistory = options?.conversationHistory;
   const liveChatSuffix =
     " This reply is being posted directly into a live meeting's chat " +
     "panel, so keep it to 1-3 short sentences — no markdown.";
+  const historyBlock = conversationHistory
+    ? `\n\nRecent conversation in this meeting:\n${conversationHistory}`
+    : "";
 
-  if (!(await needsMeetingContext(question))) {
+  if (!(await needsMeetingContext(question, conversationHistory))) {
     const result = await generateText({
       model: getChatModel(),
-      system: ASSISTANT_SYSTEM_PROMPT + liveChatSuffix,
+      system: ASSISTANT_SYSTEM_PROMPT + liveChatSuffix + historyBlock,
       prompt: question,
     });
     return result.text;
@@ -219,12 +237,19 @@ export async function answerQuestionText(
   const result = await generateText({
     model: getChatModel(),
     system:
-      "You answer questions about meeting transcripts using only the excerpts " +
-      "provided below." +
+      "You answer questions about past meetings using the transcript " +
+      "excerpts below, grounding your answer in them and not guessing " +
+      "beyond what they say." +
       liveChatSuffix +
-      " No citation markers. If the excerpts don't contain the answer, say " +
-      "so plainly instead of guessing.\n\n" +
-      `Transcript excerpts:\n${context}`,
+      " No citation markers." +
+      (conversationHistory
+        ? " You're also shown the recent conversation in this live " +
+          "meeting's chat — if the question is actually about that " +
+          "(e.g. \"what did you just say\"), answer from it directly " +
+          "instead of the transcript excerpts."
+        : "") +
+      historyBlock +
+      `\n\nTranscript excerpts:\n${context}`,
     prompt: question,
   });
 

@@ -1,7 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { categories, meetings, participants, transcriptChunks } from "@/lib/db/schema";
+import {
+  categories,
+  liveChatMessages,
+  meetings,
+  participants,
+  transcriptChunks,
+} from "@/lib/db/schema";
 import {
   cancelScheduledBot,
   removeBotFromCall,
@@ -98,6 +104,7 @@ export async function DELETE(
   // itself or the delete below fails on the foreign key constraint.
   await db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, meeting.id));
   await db.delete(participants).where(eq(participants.meetingId, meeting.id));
+  await db.delete(liveChatMessages).where(eq(liveChatMessages.meetingId, meeting.id));
   await db.delete(meetings).where(eq(meetings.id, meeting.id));
 
   return Response.json({ deleted: true });
