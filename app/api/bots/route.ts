@@ -5,14 +5,25 @@ import { createBot } from "@/lib/recall/client";
 import { detectPlatform } from "@/lib/recall/platform";
 
 export async function POST(request: Request) {
-  const { meetingUrl } = await request.json();
+  const { meetingUrl, recordVideo, recordAudio } = await request.json();
 
   if (!meetingUrl || typeof meetingUrl !== "string") {
     return Response.json({ error: "meetingUrl is required" }, { status: 400 });
   }
+  if (recordVideo !== undefined && typeof recordVideo !== "boolean") {
+    return Response.json({ error: "recordVideo must be a boolean" }, { status: 400 });
+  }
+  if (recordAudio !== undefined && typeof recordAudio !== "boolean") {
+    return Response.json({ error: "recordAudio must be a boolean" }, { status: 400 });
+  }
 
   const userId = await getCurrentUserId();
-  const bot = await createBot({ meetingUrl, botName: "Rika" });
+  const bot = await createBot({
+    meetingUrl,
+    botName: "Rika",
+    recordVideo,
+    recordAudio,
+  });
   const latestStatus = bot.status_changes.at(-1)?.code ?? "joining";
 
   const [meeting] = await db

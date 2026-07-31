@@ -6,7 +6,7 @@ export async function POST(
   { params }: RouteContext<"/api/calendar/events/[id]/schedule">,
 ) {
   const { id } = await params;
-  const { icalUid, categoryId } = await request.json();
+  const { icalUid, categoryId, recordVideo, recordAudio } = await request.json();
 
   if (!icalUid || typeof icalUid !== "string") {
     return Response.json({ error: "icalUid is required" }, { status: 400 });
@@ -17,16 +17,21 @@ export async function POST(
       { status: 400 },
     );
   }
+  if (recordVideo !== undefined && typeof recordVideo !== "boolean") {
+    return Response.json({ error: "recordVideo must be a boolean" }, { status: 400 });
+  }
+  if (recordAudio !== undefined && typeof recordAudio !== "boolean") {
+    return Response.json({ error: "recordAudio must be a boolean" }, { status: 400 });
+  }
 
   const userId = await getCurrentUserId();
 
   try {
-    const meeting = await scheduleBotForCalendarEvent(
-      userId,
-      id,
-      icalUid,
+    const meeting = await scheduleBotForCalendarEvent(userId, id, icalUid, {
       categoryId,
-    );
+      recordVideo,
+      recordAudio,
+    });
     return Response.json({ meeting }, { status: 201 });
   } catch (err) {
     return Response.json(

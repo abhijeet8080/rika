@@ -1,11 +1,51 @@
 import { createDeepSeek } from "@ai-sdk/deepseek";
-import { generateText, streamText, type ModelMessage } from "ai";
+import { generateObject, generateText, streamText, type ModelMessage } from "ai";
 import { and, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import { qdrant, TRANSCRIPT_CHUNKS_COLLECTION } from "@/lib/vector/client";
 import { embedQuery } from "./embeddings";
+
+const ASSISTANT_SYSTEM_PROMPT =
+  "You are Rika, a helpful AI assistant. Answer normally and helpfully — " +
+  "this question doesn't need meeting transcript context.";
+
+const NeedsContextSchema = z.object({
+  needsMeetingContext: z
+    .boolean()
+    .describe(
+      "true if answering requires looking up the user's past meeting transcripts",
+    ),
+});
+
+// Cheap classification pass before doing any embedding/retrieval — greetings
+// and general questions ("hii", "what's 2+2") shouldn't be forced through
+// the RAG pipeline and answered with "no relevant excerpts found".
+async function needsMeetingContext(question: string): Promise<boolean> {
+  if (!question.trim()) return false;
+
+  try {
+    const result = await generateObject({
+      model: getChatModel(),
+      schema: NeedsContextSchema,
+      system:
+        "Decide whether answering the user's message requires searching " +
+        "their past meeting transcripts. Say true for anything asking what " +
+        "was said, decided, or discussed in a meeting, or requesting a " +
+        "summary/recap. Say false for greetings, small talk, or general " +
+        "questions unrelated to their meetings.",
+      prompt: question,
+    });
+    return result.object.needsMeetingContext;
+  } catch {
+    // Classification failed — default to running the RAG pipeline. A
+    // wrong "no relevant excerpts" answer is a safer failure than
+    // silently skipping context that was actually needed.
+    return true;
+  }
+}
 
 // Lazy — reading env.DEEPSEEK_API_KEY at module load time would make any
 // build that imports this file fail before the key is even needed.
@@ -129,6 +169,15 @@ export async function answerQuestion(
   scope: ChatScope,
 ) {
   const question = extractLastUserText(messages);
+
+  if (!(await needsMeetingContext(question))) {
+    return streamText({
+      model: getChatModel(),
+      system: ASSISTANT_SYSTEM_PROMPT,
+      messages,
+    });
+  }
+
   const chunks = await retrieveChunks(question, scope);
   const context = buildContext(chunks);
 
@@ -151,6 +200,19 @@ export async function answerQuestionText(
   question: string,
   scope: ChatScope,
 ): Promise<string> {
+  const liveChatSuffix =
+    " This reply is being posted directly into a live meeting's chat " +
+    "panel, so keep it to 1-3 short sentences — no markdown.";
+
+  if (!(await needsMeetingContext(question))) {
+    const result = await generateText({
+      model: getChatModel(),
+      system: ASSISTANT_SYSTEM_PROMPT + liveChatSuffix,
+      prompt: question,
+    });
+    return result.text;
+  }
+
   const chunks = await retrieveChunks(question, scope);
   const context = buildContext(chunks);
 
@@ -158,10 +220,10 @@ export async function answerQuestionText(
     model: getChatModel(),
     system:
       "You answer questions about meeting transcripts using only the excerpts " +
-      "provided below. This reply is being posted directly into a live meeting's " +
-      "chat panel, so keep it to 1-3 short sentences — no markdown, no citation " +
-      "markers. If the excerpts don't contain the answer, say so plainly instead " +
-      "of guessing.\n\n" +
+      "provided below." +
+      liveChatSuffix +
+      " No citation markers. If the excerpts don't contain the answer, say " +
+      "so plainly instead of guessing.\n\n" +
       `Transcript excerpts:\n${context}`,
     prompt: question,
   });

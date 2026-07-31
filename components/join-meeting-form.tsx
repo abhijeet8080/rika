@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,6 +15,8 @@ interface JoinedMeeting {
 export function JoinMeetingForm() {
   const router = useRouter();
   const [meetingUrl, setMeetingUrl] = useState("");
+  const [recordVideo, setRecordVideo] = useState(true);
+  const [recordAudio, setRecordAudio] = useState(true);
   const [status, setStatus] = useState<"idle" | "joining" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState<JoinedMeeting | null>(null);
@@ -28,7 +30,7 @@ export function JoinMeetingForm() {
     const res = await fetch("/api/bots", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meetingUrl }),
+      body: JSON.stringify({ meetingUrl, recordVideo, recordAudio }),
     });
 
     const body = await res.json().catch(() => ({}));
@@ -68,6 +70,45 @@ export function JoinMeetingForm() {
           )}
         </button>
       </form>
+
+      <div className="flex items-center gap-1.5 font-mono text-[11px] text-ink-muted">
+        <button
+          type="button"
+          onClick={() => setRecordVideo((v) => !v)}
+          disabled={status === "joining"}
+          aria-pressed={recordVideo}
+          className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors disabled:opacity-50 ${
+            recordVideo
+              ? "border-ink/30 text-ink"
+              : "border-line text-ink-muted"
+          }`}
+        >
+          {recordVideo ? (
+            <Video className="h-3 w-3" strokeWidth={1.75} />
+          ) : (
+            <VideoOff className="h-3 w-3" strokeWidth={1.75} />
+          )}
+          Video
+        </button>
+        <button
+          type="button"
+          onClick={() => setRecordAudio((v) => !v)}
+          disabled={status === "joining"}
+          aria-pressed={recordAudio}
+          className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors disabled:opacity-50 ${
+            recordAudio
+              ? "border-ink/30 text-ink"
+              : "border-line text-ink-muted"
+          }`}
+        >
+          {recordAudio ? (
+            <Mic className="h-3 w-3" strokeWidth={1.75} />
+          ) : (
+            <MicOff className="h-3 w-3" strokeWidth={1.75} />
+          )}
+          Audio
+        </button>
+      </div>
 
       {error && <p className="font-mono text-[12px] text-rec">{error}</p>}
 

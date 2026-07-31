@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AudioPlayer } from "@/components/audio-player";
 import { ChatPanel } from "@/components/chat-panel";
 import { TranscriptViewer, type TranscriptChunkItem } from "@/components/transcript-viewer";
 
@@ -53,33 +54,30 @@ export function MeetingWorkspace({
 
   return (
     <div className="flex flex-col gap-4">
-      {hasRecording && (
+      {videoUrl ? (
         <div className="overflow-hidden rounded-xl border border-line bg-ink">
-          {videoUrl ? (
-            <video
-              ref={(el) => {
-                mediaRef.current = el;
-              }}
-              src={videoUrl}
-              controls
-              preload="metadata"
-              playsInline
-              onTimeUpdate={handleTimeUpdate}
-              className="aspect-video w-full bg-ink"
-            />
-          ) : (
-            <audio
-              ref={(el) => {
-                mediaRef.current = el;
-              }}
-              src={audioUrl ?? undefined}
-              controls
-              preload="metadata"
-              onTimeUpdate={handleTimeUpdate}
-              className="w-full"
-            />
-          )}
+          <video
+            ref={(el) => {
+              mediaRef.current = el;
+            }}
+            src={videoUrl}
+            controls
+            preload="metadata"
+            playsInline
+            onTimeUpdate={handleTimeUpdate}
+            className="aspect-video w-full bg-ink"
+          />
         </div>
+      ) : (
+        audioUrl && (
+          <AudioPlayer
+            src={audioUrl}
+            mediaRefCallback={(el) => {
+              mediaRef.current = el;
+            }}
+            onTimeUpdate={handleTimeUpdate}
+          />
+        )
       )}
 
       <div className="flex items-center gap-5 border-b border-line font-mono text-[13px] tracking-wider uppercase">

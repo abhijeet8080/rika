@@ -12,11 +12,17 @@ export async function scheduleBotForCalendarEvent(
   userId: string,
   eventId: string,
   icalUid: string,
-  categoryId?: string | null,
+  options: {
+    categoryId?: string | null;
+    recordVideo?: boolean;
+    recordAudio?: boolean;
+  } = {},
 ) {
+  const { categoryId, recordVideo, recordAudio } = options;
+
   const event = await scheduleCalendarBot(eventId, {
     deduplicationKey: icalUid,
-    botConfig: { botName: "Rika" },
+    botConfig: { botName: "Rika", recordVideo, recordAudio },
   });
 
   // Recall returns scheduled bots as a `bots` array (confirmed live) —

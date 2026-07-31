@@ -8,7 +8,11 @@ export interface CreateBotParams {
   /** ISO 8601. Omit for an immediate "join now" bot. */
   joinAt?: string;
   metadata?: Record<string, string>;
-  /** Overrides the default (transcript + mixed audio enabled) recording config. */
+  /** Default true. Transcript is always captured regardless of these. */
+  recordVideo?: boolean;
+  /** Default true. Transcript is always captured regardless of these. */
+  recordAudio?: boolean;
+  /** Overrides the built recording config (including the video/audio flags above) entirely. */
   recordingConfig?: Record<string, unknown>;
 }
 

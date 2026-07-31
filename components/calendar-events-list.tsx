@@ -1,5 +1,6 @@
 "use client";
 
+import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CategorySelect } from "@/components/category-select";
@@ -41,6 +42,8 @@ function CalendarEventsListContent({
   const [selectedCategory, setSelectedCategory] = useState<
     Record<string, string | null>
   >({});
+  const [videoPrefs, setVideoPrefs] = useState<Record<string, boolean>>({});
+  const [audioPrefs, setAudioPrefs] = useState<Record<string, boolean>>({});
   const { categories } = useCategories();
 
   // Derived, not synced via effect: if a selection points at a category
@@ -94,6 +97,8 @@ function CalendarEventsListContent({
         body: JSON.stringify({
           icalUid: event.ical_uid,
           categoryId: selectedCategoryFor(event.id),
+          recordVideo: videoPrefs[event.id] ?? true,
+          recordAudio: audioPrefs[event.id] ?? true,
         }),
       });
     } catch {
@@ -170,21 +175,67 @@ function CalendarEventsListContent({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {!event.bots?.length && (
-                    <CategorySelect
-                      // Remount when the category list changes (created/
-                      // deleted elsewhere) — CategorySelect mirrors
-                      // `categories` into local state on mount only.
-                      key={categories.length}
-                      mode="controlled"
-                      categories={categories}
-                      value={selectedCategoryFor(event.id)}
-                      onChange={(categoryId) =>
-                        setSelectedCategory((prev) => ({
-                          ...prev,
-                          [event.id]: categoryId,
-                        }))
-                      }
-                    />
+                    <>
+                      <CategorySelect
+                        // Remount when the category list changes (created/
+                        // deleted elsewhere) — CategorySelect mirrors
+                        // `categories` into local state on mount only.
+                        key={categories.length}
+                        mode="controlled"
+                        categories={categories}
+                        value={selectedCategoryFor(event.id)}
+                        onChange={(categoryId) =>
+                          setSelectedCategory((prev) => ({
+                            ...prev,
+                            [event.id]: categoryId,
+                          }))
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVideoPrefs((prev) => ({
+                            ...prev,
+                            [event.id]: !(prev[event.id] ?? true),
+                          }))
+                        }
+                        aria-pressed={videoPrefs[event.id] ?? true}
+                        aria-label="Toggle video recording"
+                        className={`rounded-full border p-1.5 transition-colors ${
+                          (videoPrefs[event.id] ?? true)
+                            ? "border-ink/30 text-ink"
+                            : "border-line text-ink-muted"
+                        }`}
+                      >
+                        {(videoPrefs[event.id] ?? true) ? (
+                          <Video className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        ) : (
+                          <VideoOff className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAudioPrefs((prev) => ({
+                            ...prev,
+                            [event.id]: !(prev[event.id] ?? true),
+                          }))
+                        }
+                        aria-pressed={audioPrefs[event.id] ?? true}
+                        aria-label="Toggle audio recording"
+                        className={`rounded-full border p-1.5 transition-colors ${
+                          (audioPrefs[event.id] ?? true)
+                            ? "border-ink/30 text-ink"
+                            : "border-line text-ink-muted"
+                        }`}
+                      >
+                        {(audioPrefs[event.id] ?? true) ? (
+                          <Mic className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        ) : (
+                          <MicOff className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        )}
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => handleRecord(event)}

@@ -15,9 +15,19 @@ import type {
 // A function (not a module-level constant) so reading env.APP_BASE_URL
 // doesn't happen at import time — same reasoning as the lazy chat model
 // in lib/ai/rag.ts.
-function getDefaultRecordingConfig() {
+//
+// Transcript and the live-chat webhook are always on — they're what the
+// app is for. Video/audio are the user's choice: video_mixed_mp4 has to
+// be explicitly nulled out to opt out (it's on by default), while
+// audio_mixed_mp3 has to be explicitly added to opt in (it's off by
+// default) — asymmetric on Recall's side, not ours.
+function getRecordingConfig({
+  recordVideo = true,
+  recordAudio = true,
+}: { recordVideo?: boolean; recordAudio?: boolean } = {}) {
   return {
-    audio_mixed_mp3: {},
+    ...(recordVideo ? {} : { video_mixed_mp4: null }),
+    ...(recordAudio ? { audio_mixed_mp3: {} } : {}),
     transcript: {
       provider: {
         recallai_streaming: {
@@ -73,7 +83,12 @@ export async function createBot(params: CreateBotParams): Promise<RecallBot> {
       bot_name: params.botName,
       join_at: params.joinAt,
       metadata: params.metadata,
-      recording_config: params.recordingConfig ?? getDefaultRecordingConfig(),
+      recording_config:
+        params.recordingConfig ??
+        getRecordingConfig({
+          recordVideo: params.recordVideo,
+          recordAudio: params.recordAudio,
+        }),
     }),
   });
 }
@@ -155,8 +170,16 @@ export async function scheduleCalendarBot(
   eventId: string,
   params: ScheduleCalendarBotParams,
 ): Promise<RecallCalendarEvent> {
-  const { meetingUrl, botName, joinAt, metadata, recordingConfig, ...rest } =
-    params.botConfig;
+  const {
+    meetingUrl,
+    botName,
+    joinAt,
+    metadata,
+    recordingConfig,
+    recordVideo,
+    recordAudio,
+    ...rest
+  } = params.botConfig;
 
   return recallFetch<RecallCalendarEvent>(
     "v2",
@@ -170,7 +193,8 @@ export async function scheduleCalendarBot(
           bot_name: botName,
           join_at: joinAt,
           metadata,
-          recording_config: recordingConfig ?? getDefaultRecordingConfig(),
+          recording_config:
+            recordingConfig ?? getRecordingConfig({ recordVideo, recordAudio }),
           ...rest,
         },
       }),
