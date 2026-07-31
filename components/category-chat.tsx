@@ -1,7 +1,9 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useState } from "react";
 import { ChatPanel } from "@/components/chat-panel";
+import { Input } from "@/components/ui/input";
 import { useCategories } from "@/lib/hooks/use-categories";
 
 type Scope = { type: "uncategorized" } | { type: "category"; id: string };
@@ -12,10 +14,11 @@ function scopeKey(scope: Scope): string {
 }
 
 export function CategoryChat() {
-  const { categories, createCategory } = useCategories();
+  const { categories, createCategory, deleteCategory } = useCategories();
   const [scope, setScope] = useState<Scope>({ type: "uncategorized" });
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function pillClasses(isActive: boolean): string {
     return `rounded-full border px-3 py-1.5 text-sm transition-colors ${
@@ -36,6 +39,14 @@ export function CategoryChat() {
     }
   }
 
+  async function handleDelete(id: string) {
+    const ok = await deleteCategory(id);
+    setConfirmDeleteId(null);
+    if (ok && scope.type === "category" && scope.id === id) {
+      setScope({ type: "uncategorized" });
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -46,30 +57,67 @@ export function CategoryChat() {
         >
           Uncategorized
         </button>
-        {categories.map((category) => (
-          <button
-            type="button"
-            key={category.id}
-            onClick={() => setScope({ type: "category", id: category.id })}
-            className={pillClasses(
-              scope.type === "category" && scope.id === category.id,
-            )}
-          >
-            {category.name}{" "}
-            <span className="font-mono text-[11px] opacity-70">
-              {category.meetingCount}
-            </span>
-          </button>
-        ))}
+        {categories.map((category) =>
+          confirmDeleteId === category.id ? (
+            <div
+              key={category.id}
+              className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 font-mono text-[12px]"
+            >
+              <span className="text-ink-muted">Delete {category.name}?</span>
+              <button
+                type="button"
+                onClick={() => handleDelete(category.id)}
+                className="text-rec underline underline-offset-2"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(null)}
+                className="text-ink-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div
+              key={category.id}
+              className={`group flex items-center rounded-full border transition-colors ${
+                scope.type === "category" && scope.id === category.id
+                  ? "border-ink bg-ink text-paper"
+                  : "border-line text-ink hover:border-ink/30"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setScope({ type: "category", id: category.id })}
+                className="rounded-full py-1.5 pr-1.5 pl-3 text-sm"
+              >
+                {category.name}{" "}
+                <span className="font-mono text-[11px] opacity-70">
+                  {category.meetingCount}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(category.id)}
+                aria-label={`Delete ${category.name}`}
+                className="rounded-full p-1.5 opacity-60 transition-opacity hover:opacity-100"
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            </div>
+          ),
+        )}
 
         {creating ? (
           <form onSubmit={handleCreate} className="flex items-center gap-1.5">
-            <input
+            <Input
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New category name"
-              className="rounded-full border border-line bg-card px-3 py-1 text-sm text-ink outline-none focus:border-ink/30"
+              className="py-1"
             />
             <button
               type="submit"

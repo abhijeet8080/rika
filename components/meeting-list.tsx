@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { Card } from "@/components/ui/card";
 
 export interface MeetingListItem {
   id: string;
@@ -66,9 +67,10 @@ export function MeetingList({
   return (
     <ul className="flex flex-col gap-2">
       {meetings.map((meeting) => (
-        <li
+        <Card
+          as="li"
           key={meeting.id}
-          className="group flex items-center gap-4 rounded-xl border border-line bg-card px-4 py-3 transition-colors hover:border-ink/25 hover:bg-white"
+          className="group flex items-center gap-4 px-4 py-3 transition-colors hover:border-ink/25 hover:bg-white"
         >
           <Link
             href={`/meetings/${meeting.id}`}
@@ -135,12 +137,12 @@ export function MeetingList({
               type="button"
               onClick={() => setConfirmDeleteId(meeting.id)}
               aria-label="Remove meeting"
-              className="shrink-0 rounded-lg p-1.5 text-ink-muted opacity-0 transition-opacity hover:bg-paper-soft hover:text-rec group-hover:opacity-100"
+              className="shrink-0 rounded-lg p-1.5 text-ink-muted/60 transition-colors hover:bg-paper-soft hover:text-rec"
             >
               <Trash2 className="h-4 w-4" strokeWidth={1.75} />
             </button>
           )}
-        </li>
+        </Card>
       ))}
     </ul>
   );

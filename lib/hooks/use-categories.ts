@@ -43,5 +43,13 @@ export function useCategories() {
     return category;
   }
 
-  return { categories, loaded, createCategory };
+  async function deleteCategory(id: string): Promise<boolean> {
+    const res = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    if (!res.ok) return false;
+
+    setCategories((prev) => prev.filter((c) => c.id !== id));
+    return true;
+  }
+
+  return { categories, loaded, createCategory, deleteCategory };
 }

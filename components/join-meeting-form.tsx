@@ -4,6 +4,7 @@ import { ArrowRight, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Input } from "@/components/ui/input";
 
 interface JoinedMeeting {
   id: string;
@@ -50,14 +51,14 @@ export function JoinMeetingForm() {
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto">
       <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
+        <Input
           type="url"
           required
           value={meetingUrl}
           onChange={(e) => setMeetingUrl(e.target.value)}
           placeholder="Paste a Zoom, Meet, or Teams link..."
           disabled={status === "joining"}
-          className="w-full rounded-full border border-line bg-card px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-ink/30 disabled:opacity-50 sm:w-72"
+          className="w-full sm:w-72"
         />
         <button
           type="submit"

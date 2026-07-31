@@ -63,24 +63,28 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Mapped onto the brand tokens above (see --color-paper etc.) so the
+     generic shadcn primitives (Button, Switch, Popover, …) render
+     in-brand without per-component color overrides. Kept as literal
+     hex — matches --color-* exactly, see @theme inline above. */
+  --background: #f1eee4;
+  --foreground: #15171d;
+  --card: #f8f6ef;
+  --card-foreground: #15171d;
+  --popover: #f8f6ef;
+  --popover-foreground: #15171d;
+  --primary: #15171d;
+  --primary-foreground: #f1eee4;
+  --secondary: #ebe7da;
+  --secondary-foreground: #15171d;
+  --muted: #ebe7da;
+  --muted-foreground: #5b5d66;
+  --accent: #ebe7da;
+  --accent-foreground: #15171d;
+  --destructive: #ff3b2f;
+  --border: #ddd6c7;
+  --input: #ddd6c7;
+  --ring: #15171d;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

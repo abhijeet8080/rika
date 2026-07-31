@@ -6,6 +6,7 @@ import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
 import { MeetingWorkspace } from "@/components/meeting-workspace";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/ui/page-header";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -91,24 +92,25 @@ export default async function MeetingDetailPage({
           Meetings
         </Link>
 
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight break-words text-ink">
-            {meeting.title ?? meeting.meetingUrl}
-          </h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <StatusBadge status={meeting.status} />
-            <span className="font-mono text-[13px] text-ink-muted">
-              {meeting.platform ?? "unknown platform"}
-              {duration ? ` · ${duration}` : ""}
+        <PageHeader
+          className="items-center"
+          title={meeting.title ?? meeting.meetingUrl}
+          description={
+            <span className="flex flex-wrap items-center gap-3">
+              <StatusBadge status={meeting.status} />
+              <span className="text-ink-muted">
+                {meeting.platform ?? "unknown platform"}
+                {duration ? ` · ${duration}` : ""}
+              </span>
+              <CategorySelect
+                mode="bound"
+                meetingId={meeting.id}
+                initialCategoryId={meeting.categoryId}
+                categories={userCategories}
+              />
             </span>
-            <CategorySelect
-              mode="bound"
-              meetingId={meeting.id}
-              initialCategoryId={meeting.categoryId}
-              categories={userCategories}
-            />
-          </div>
-        </div>
+          }
+        />
       </div>
 
       <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">

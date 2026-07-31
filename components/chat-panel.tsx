@@ -5,6 +5,7 @@ import { DefaultChatTransport } from "ai";
 import { ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "@/components/empty-state";
+import { Input } from "@/components/ui/input";
 
 // The transport is only built once, on mount — if the scope needs to
 // change (e.g. the user picks a different category), remount this
@@ -79,7 +80,7 @@ export function ChatPanel({
       )}
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        <input
+        <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={isBusy}
@@ -90,7 +91,7 @@ export function ChatPanel({
                 ? "Ask about these meetings..."
                 : "Ask about any of your meetings..."
           }
-          className="flex-1 rounded-full border border-line bg-card px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-ink/30 disabled:opacity-50"
+          className="flex-1"
         />
         <button
           type="submit"

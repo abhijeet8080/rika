@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { Calendar, Check } from "lucide-react";
 import { AutoRecordToggle } from "@/components/auto-record-toggle";
 import { CalendarEventsList } from "@/components/calendar-events-list";
+import { Card } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { calendarConnections } from "@/lib/db/schema";
@@ -32,14 +34,10 @@ export default async function CalendarSettingsPage() {
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-ink">
-          Calendar
-        </h1>
-        <p className="mt-1.5 font-mono text-[13px] text-ink-muted">
-          Connect one or more calendars to auto-detect meetings from invites.
-        </p>
-      </div>
+      <PageHeader
+        title="Calendar"
+        description="Connect one or more calendars to auto-detect meetings from invites."
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {PROVIDERS.map((provider) => {
@@ -47,10 +45,7 @@ export default async function CalendarSettingsPage() {
             (c) => c.provider === provider.id,
           );
           return (
-            <div
-              key={provider.id}
-              className="rounded-xl border border-line bg-card p-4"
-            >
+            <Card key={provider.id} className="flex flex-col divide-y divide-line p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-soft text-ink-muted">
@@ -70,13 +65,13 @@ export default async function CalendarSettingsPage() {
 
               {accounts.length > 0 && (
                 <>
-                  <div className="mt-3 border-t border-line pt-3">
+                  <div className="pt-4">
                     <AutoRecordToggle
                       connectionIds={accounts.map((a) => a.id)}
                       initialValue={accounts.every((a) => a.autoRecord)}
                     />
                   </div>
-                  <ul className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
+                  <ul className="flex flex-col gap-1.5 pt-4">
                     {accounts.map((account) => (
                       <li
                         key={account.id}
@@ -92,7 +87,7 @@ export default async function CalendarSettingsPage() {
                   </ul>
                 </>
               )}
-            </div>
+            </Card>
           );
         })}
       </div>

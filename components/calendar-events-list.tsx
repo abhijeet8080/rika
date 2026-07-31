@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
+import { Card } from "@/components/ui/card";
 import { useCategories } from "@/lib/hooks/use-categories";
 
 interface CalendarEvent {
@@ -151,10 +152,7 @@ function CalendarEventsListContent({
       ) : (
         <ul className="flex flex-col gap-2">
           {events.map((event) => (
-            <li
-              key={event.id}
-              className="flex flex-col gap-2 rounded-xl border border-line bg-card p-4"
-            >
+            <Card as="li" key={event.id} className="flex flex-col gap-2 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink">
@@ -259,7 +257,7 @@ function CalendarEventsListContent({
                   {recordErrors[event.id]}
                 </p>
               )}
-            </li>
+            </Card>
           ))}
         </ul>
       )}
