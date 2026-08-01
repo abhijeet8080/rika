@@ -10,23 +10,24 @@ import type {
   ScheduleCalendarBotParams,
 } from "./types";
 
-// Recall's own defaults capture mixed video but NOT transcript or mixed
-// audio — both must be explicitly requested or they come back `null`.
 // A function (not a module-level constant) so reading env.APP_BASE_URL
 // doesn't happen at import time — same reasoning as the lazy chat model
 // in lib/ai/rag.ts.
 //
 // Transcript and the live-chat webhook are always on — they're what the
-// app is for. Video/audio are the user's choice: video_mixed_mp4 has to
-// be explicitly nulled out to opt out (it's on by default), while
-// audio_mixed_mp3 has to be explicitly added to opt in (it's off by
-// default) — asymmetric on Recall's side, not ours.
+// app is for. Video/audio are the user's choice, and both are requested
+// explicitly rather than relying on Recall's documented "video_mixed_mp4
+// is on by default when omitted" — confirmed live on a Microsoft Teams
+// bot that video came back null with the key omitted (audio + transcript
+// both came through fine on the same bot), so the default isn't
+// consistent across platforms. Explicit on every bot avoids depending on
+// per-platform default behavior we can't fully verify.
 function getRecordingConfig({
   recordVideo = true,
   recordAudio = true,
 }: { recordVideo?: boolean; recordAudio?: boolean } = {}) {
   return {
-    ...(recordVideo ? {} : { video_mixed_mp4: null }),
+    ...(recordVideo ? { video_mixed_mp4: {} } : { video_mixed_mp4: null }),
     ...(recordAudio ? { audio_mixed_mp3: {} } : {}),
     transcript: {
       provider: {
@@ -47,6 +48,42 @@ function getRecordingConfig({
         events: ["participant_events.chat_message"],
       },
     ],
+  };
+}
+
+// Top-level bot-creation field (sibling to recording_config, not nested
+// in it). Explicit and complete rather than a partial override — after
+// getting burned by video_mixed_mp4's inconsistent "on when omitted"
+// behavior, not assuming a partial automatic_leave object leaves the
+// rest at Recall's defaults rather than resetting them. Every value
+// below except bot_detection's timeouts is Recall's own confirmed
+// default (read back live from a real bot that had no automatic_leave
+// sent at all).
+//
+// bot_detection is shortened from Recall's default (~12 min: 120s
+// activate_after + 600s timeout) to ~90s — that default only became a
+// real problem for us because our own bot_name ("Rika(Abhijeet's
+// Assistant)") matches the built-in using_participant_names pattern, so
+// two Rika bots in the same call (see findActiveMeetingForUrl, which
+// should prevent that going forward) would otherwise keep each other
+// "company" for up to 12 minutes after every human left instead of
+// leaving quickly.
+function getAutomaticLeaveConfig() {
+  return {
+    waiting_room_timeout: 1200,
+    noone_joined_timeout: 1200,
+    everyone_left_timeout: { timeout: 2, activate_after: null },
+    in_call_not_recording_timeout: 3600,
+    recording_permission_denied_timeout: 30,
+    silence_detection: { timeout: 3600, activate_after: 1200 },
+    bot_detection: {
+      using_participant_events: { timeout: 60, activate_after: 30 },
+      using_participant_names: {
+        timeout: 60,
+        activate_after: 30,
+        matches: ["notetaker", "recorder", "assistant"],
+      },
+    },
   };
 }
 
@@ -89,6 +126,7 @@ export async function createBot(params: CreateBotParams): Promise<RecallBot> {
           recordVideo: params.recordVideo,
           recordAudio: params.recordAudio,
         }),
+      automatic_leave: getAutomaticLeaveConfig(),
     }),
   });
 }
@@ -195,6 +233,7 @@ export async function scheduleCalendarBot(
           metadata,
           recording_config:
             recordingConfig ?? getRecordingConfig({ recordVideo, recordAudio }),
+          automatic_leave: getAutomaticLeaveConfig(),
           ...rest,
         },
       }),

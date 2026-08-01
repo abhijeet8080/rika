@@ -20,12 +20,16 @@ export function JoinMeetingForm() {
   const [recordAudio, setRecordAudio] = useState(true);
   const [status, setStatus] = useState<"idle" | "joining" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [existingMeetingId, setExistingMeetingId] = useState<string | null>(
+    null,
+  );
   const [joined, setJoined] = useState<JoinedMeeting | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("joining");
     setError(null);
+    setExistingMeetingId(null);
     setJoined(null);
 
     const res = await fetch("/api/bots", {
@@ -38,6 +42,9 @@ export function JoinMeetingForm() {
 
     if (!res.ok) {
       setError(body.error ?? `Request failed (${res.status})`);
+      if (res.status === 409 && body.meetingId) {
+        setExistingMeetingId(body.meetingId);
+      }
       setStatus("error");
       return;
     }
@@ -111,7 +118,22 @@ export function JoinMeetingForm() {
         </button>
       </div>
 
-      {error && <p className="font-mono text-[12px] text-rec">{error}</p>}
+      {error && (
+        <p className="font-mono text-[12px] text-rec">
+          {error}
+          {existingMeetingId && (
+            <>
+              {" "}
+              <Link
+                href={`/meetings/${existingMeetingId}`}
+                className="underline underline-offset-2"
+              >
+                view meeting
+              </Link>
+            </>
+          )}
+        </p>
+      )}
 
       {joined && (
         <p className="font-mono text-[12px] text-ink-muted">

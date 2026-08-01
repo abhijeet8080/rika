@@ -31,16 +31,42 @@ export async function embedQuery(text: string): Promise<number[]> {
   return embedding;
 }
 
+// Gemini's free tier caps embedContent at 100 requests/minute per project
+// — confirmed live (a 238-chunk meeting reliably hit
+// EmbedContentRequestsPerMinutePerUserPerProjectPerModel-FreeTier, since
+// embedMany's own batching still counts each text against that quota).
+// Batching under the cap with a cooldown between batches trades latency
+// (a long meeting takes a few extra minutes to finish processing after
+// the call ends) for not silently failing partway through — see
+// lib/recall/process-meeting.ts, which now also refuses to write
+// anything to Postgres until this succeeds, so a genuine failure here
+// leaves no partial state to clean up.
+const EMBEDDING_BATCH_SIZE = 90;
+const EMBEDDING_BATCH_COOLDOWN_MS = 65_000;
+
 export async function embedChunks(texts: string[]): Promise<number[][]> {
-  const { embeddings } = await embedMany({
-    model: getEmbeddingModel(),
-    values: texts,
-    providerOptions: {
-      google: {
-        outputDimensionality: EMBEDDING_DIMENSIONS,
-        taskType: "RETRIEVAL_DOCUMENT",
-      } satisfies GoogleEmbeddingModelOptions,
-    },
-  });
-  return embeddings;
+  const results: number[][] = [];
+
+  for (let i = 0; i < texts.length; i += EMBEDDING_BATCH_SIZE) {
+    if (i > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, EMBEDDING_BATCH_COOLDOWN_MS),
+      );
+    }
+
+    const batch = texts.slice(i, i + EMBEDDING_BATCH_SIZE);
+    const { embeddings } = await embedMany({
+      model: getEmbeddingModel(),
+      values: batch,
+      providerOptions: {
+        google: {
+          outputDimensionality: EMBEDDING_DIMENSIONS,
+          taskType: "RETRIEVAL_DOCUMENT",
+        } satisfies GoogleEmbeddingModelOptions,
+      },
+    });
+    results.push(...embeddings);
+  }
+
+  return results;
 }

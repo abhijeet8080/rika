@@ -13,6 +13,13 @@ import {
 } from "@/lib/recall/types";
 import { verifyRecallWebhookSignature } from "@/lib/recall/verify-webhook";
 
+// The response itself acks in well under a second (all real work happens
+// in after()), but after() still runs within this function's own
+// duration budget — processCompletedBot's throttled embedding batches
+// (see lib/ai/embeddings.ts) can take a few minutes on a long meeting,
+// so this needs real headroom rather than an implicit/short default.
+export const maxDuration = 300;
+
 async function syncCalendarStatus(calendarId: string): Promise<void> {
   const calendar = await retrieveCalendar(calendarId);
   await db

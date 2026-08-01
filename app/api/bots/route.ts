@@ -1,5 +1,6 @@
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
+import { findActiveMeetingForUrl } from "@/lib/db/meetings";
 import { meetings } from "@/lib/db/schema";
 import { createBot } from "@/lib/recall/client";
 import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
@@ -19,6 +20,21 @@ export async function POST(request: Request) {
   }
 
   const userId = await getCurrentUserId();
+
+  // Covers the case a calendar auto-record already dispatched a bot for
+  // this same meeting (or a previous manual join did) — without this,
+  // pasting the same link twice sends two bots into the same call.
+  const existing = await findActiveMeetingForUrl(userId, meetingUrl);
+  if (existing) {
+    return Response.json(
+      {
+        error: "Rika is already in this meeting.",
+        meetingId: existing.id,
+      },
+      { status: 409 },
+    );
+  }
+
   const bot = await createBot({
     meetingUrl,
     botName: BOT_DISPLAY_NAME,

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { embedChunks } from "@/lib/ai/embeddings";
 import { db } from "@/lib/db/client";
@@ -89,28 +90,35 @@ export async function processCompletedBot(botId: string): Promise<void> {
 
   const chunkDrafts = transcriptEntries.flatMap(chunkTranscriptEntry);
 
-  if (chunkDrafts.length > 0) {
-    const insertedChunks = await db
-      .insert(transcriptChunks)
-      .values(
-        chunkDrafts.map((c) => ({
-          meetingId: meeting.id,
-          speaker: c.speaker,
-          startMs: c.startMs,
-          endMs: c.endMs,
-          text: c.text,
-        })),
-      )
-      .returning();
+  // Ids assigned up front so the embedding call and the Qdrant write —
+  // both external calls, both liable to fail — happen *before* any
+  // Postgres write. A failure here should leave nothing committed,
+  // rather than transcript chunks landing in Postgres with no
+  // embeddings, no participants, and no status update (exactly what
+  // happened to a real meeting: 238 chunks committed, everything after
+  // silently never ran, and it sat stuck on "scheduled" indefinitely).
+  const chunksWithIds = chunkDrafts.map((c) => ({ id: randomUUID(), ...c }));
 
-    const embeddings = await embedChunks(insertedChunks.map((c) => c.text));
+  if (chunksWithIds.length > 0) {
+    const embeddings = await embedChunks(chunksWithIds.map((c) => c.text));
 
     await upsertTranscriptChunks(
-      insertedChunks.map((c, i) => ({
+      chunksWithIds.map((c, i) => ({
         id: c.id,
         vector: embeddings[i],
         meetingId: meeting.id,
         userId: meeting.userId,
+        speaker: c.speaker,
+        startMs: c.startMs,
+        endMs: c.endMs,
+        text: c.text,
+      })),
+    );
+
+    await db.insert(transcriptChunks).values(
+      chunksWithIds.map((c) => ({
+        id: c.id,
+        meetingId: meeting.id,
         speaker: c.speaker,
         startMs: c.startMs,
         endMs: c.endMs,
