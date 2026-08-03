@@ -14,10 +14,17 @@ export default function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const isMeetingWorkspace = /^\/meetings\/[^/]+$/.test(pathname);
 
   return (
-    <div className="flex flex-1 flex-col bg-paper">
-      <header className="sticky top-0 z-50 flex items-center gap-8 border-b border-line bg-paper/90 px-6 py-4 backdrop-blur-md">
+    <div
+      className={
+        isMeetingWorkspace
+          ? "flex min-h-dvh flex-col bg-paper lg:h-dvh lg:overflow-hidden"
+          : "flex flex-1 flex-col bg-paper"
+      }
+    >
+      <header className="sticky top-0 z-50 flex shrink-0 items-center gap-8 border-b border-line bg-paper/90 px-6 py-4 backdrop-blur-md">
         <Link href="/meetings" className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-rec" />
           <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-ink">
@@ -46,8 +53,20 @@ export default function DashboardLayout({
         </nav>
         <UserButton />
       </header>
-      <main className="flex flex-1 flex-col px-6 py-10">
-        <div className="mx-auto w-full max-w-4xl">{children}</div>
+      <main
+        className={`flex min-h-0 flex-1 flex-col px-6 ${
+          isMeetingWorkspace ? "py-5" : "py-10"
+        }`}
+      >
+        <div
+          className={
+            isMeetingWorkspace
+              ? "mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col"
+              : "mx-auto w-full max-w-4xl"
+          }
+        >
+          {children}
+        </div>
       </main>
     </div>
   );

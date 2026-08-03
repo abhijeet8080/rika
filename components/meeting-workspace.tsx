@@ -53,69 +53,84 @@ export function MeetingWorkspace({
   }, [activeChunkId]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {videoUrl ? (
-        <div className="overflow-hidden rounded-xl border border-line bg-ink">
-          <video
-            ref={(el) => {
-              mediaRef.current = el;
-            }}
-            src={videoUrl}
-            controls
-            preload="metadata"
-            playsInline
-            onTimeUpdate={handleTimeUpdate}
-            className="aspect-video w-full bg-ink"
-          />
+    <div
+      className={`grid min-h-0 flex-1 gap-6 ${
+        hasRecording
+          ? "lg:grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)] lg:grid-rows-1"
+          : ""
+      }`}
+    >
+      {hasRecording && (
+        <div className="flex min-h-[240px] min-w-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-ink lg:min-h-0">
+          {videoUrl ? (
+            <video
+              ref={(el) => {
+                mediaRef.current = el;
+              }}
+              src={videoUrl}
+              controls
+              preload="metadata"
+              playsInline
+              onTimeUpdate={handleTimeUpdate}
+              className="h-full max-h-[min(56vh,720px)] w-full bg-ink object-contain lg:max-h-none"
+            />
+          ) : (
+            audioUrl && (
+              <div className="w-full p-4">
+                <AudioPlayer
+                  src={audioUrl}
+                  mediaRefCallback={(el) => {
+                    mediaRef.current = el;
+                  }}
+                  onTimeUpdate={handleTimeUpdate}
+                />
+              </div>
+            )
+          )}
         </div>
-      ) : (
-        audioUrl && (
-          <AudioPlayer
-            src={audioUrl}
-            mediaRefCallback={(el) => {
-              mediaRef.current = el;
-            }}
-            onTimeUpdate={handleTimeUpdate}
-          />
-        )
       )}
 
-      <div className="flex items-center gap-5 border-b border-line font-mono text-[13px] tracking-wider uppercase">
-        <button
-          type="button"
-          onClick={() => setTab("transcript")}
-          className={`border-b-2 pb-2 transition-colors ${
-            tab === "transcript"
-              ? "border-rec text-ink"
-              : "border-transparent text-ink-muted hover:text-ink"
-          }`}
-        >
-          Transcript
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("chat")}
-          className={`border-b-2 pb-2 transition-colors ${
-            tab === "chat"
-              ? "border-rec text-ink"
-              : "border-transparent text-ink-muted hover:text-ink"
-          }`}
-        >
-          Ask Rika
-        </button>
+      <div className="flex min-h-[min(50vh,420px)] min-w-0 flex-col gap-3 lg:min-h-0">
+        <div className="flex shrink-0 items-center gap-5 border-b border-line font-mono text-[13px] tracking-wider uppercase">
+          <button
+            type="button"
+            onClick={() => setTab("transcript")}
+            className={`border-b-2 pb-2 transition-colors ${
+              tab === "transcript"
+                ? "border-rec text-ink"
+                : "border-transparent text-ink-muted hover:text-ink"
+            }`}
+          >
+            Transcript
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("chat")}
+            className={`border-b-2 pb-2 transition-colors ${
+              tab === "chat"
+                ? "border-rec text-ink"
+                : "border-transparent text-ink-muted hover:text-ink"
+            }`}
+          >
+            Ask Rika
+          </button>
+        </div>
+
+        {tab === "transcript" ? (
+          <div ref={transcriptRef} className="min-h-0 flex-1">
+            <TranscriptViewer
+              chunks={chunks}
+              onSeek={hasRecording ? handleSeek : undefined}
+              activeChunkId={activeChunkId}
+              className="h-full max-h-[min(50vh,420px)] lg:max-h-none"
+            />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ChatPanel meetingId={meetingId} />
+          </div>
+        )}
       </div>
-
-      {tab === "transcript" ? (
-        <div ref={transcriptRef}>
-          <TranscriptViewer
-            chunks={chunks}
-            onSeek={hasRecording ? handleSeek : undefined}
-            activeChunkId={activeChunkId}
-          />
-        </div>
-      ) : (
-        <ChatPanel meetingId={meetingId} />
-      )}
     </div>
   );
 }

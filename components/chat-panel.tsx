@@ -40,7 +40,9 @@ export function ChatPanel({
   const isBusy = status !== "ready" && status !== "error";
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div
+      className={`flex flex-col gap-4 ${meetingId ? "h-full min-h-0" : "max-w-2xl"}`}
+    >
       {messages.length === 0 ? (
         <EmptyState>
           {meetingId || categoryId || uncategorizedOnly

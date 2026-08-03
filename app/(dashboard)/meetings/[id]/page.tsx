@@ -3,10 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { CategorySelect } from "@/components/category-select";
-import { EmptyState } from "@/components/empty-state";
 import { MeetingWorkspace } from "@/components/meeting-workspace";
 import { StatusBadge } from "@/components/status-badge";
-import { PageHeader } from "@/components/ui/page-header";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -82,21 +80,22 @@ export default async function MeetingDetailPage({
   const duration = formatDuration(meeting.startedAt, meeting.endedAt);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex shrink-0 flex-col gap-3">
         <Link
           href="/meetings"
-          className="flex items-center gap-1.5 font-mono text-[13px] text-ink-muted transition-colors hover:text-ink"
+          className="flex w-fit items-center gap-1.5 font-mono text-[13px] text-ink-muted transition-colors hover:text-ink"
         >
           <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
           Meetings
         </Link>
 
-        <PageHeader
-          className="items-center"
-          title={meeting.title ?? meeting.meetingUrl}
-          description={
-            <span className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight break-words text-ink sm:text-3xl">
+              {meeting.title ?? meeting.meetingUrl}
+            </h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-3 font-mono text-[13px]">
               <StatusBadge status={meeting.status} />
               <span className="text-ink-muted">
                 {meeting.platform ?? "unknown platform"}
@@ -108,41 +107,30 @@ export default async function MeetingDetailPage({
                 initialCategoryId={meeting.categoryId}
                 categories={userCategories}
               />
-            </span>
-          }
-        />
-      </div>
+            </div>
+          </div>
 
-      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <section className="order-2 flex flex-col gap-3 lg:order-none">
-          <h2 className="font-mono text-[13px] tracking-wider text-ink-muted uppercase">
-            Participants
-          </h2>
-          {meetingParticipants.length === 0 ? (
-            <EmptyState>No participants recorded yet.</EmptyState>
-          ) : (
-            <ul className="flex flex-wrap gap-2">
+          {meetingParticipants.length > 0 && (
+            <ul className="flex max-w-xl flex-wrap justify-end gap-1.5">
               {meetingParticipants.map((p) => (
                 <li
                   key={p.id}
-                  className="rounded-full border border-line bg-card px-3 py-1.5 text-sm text-ink"
+                  className="rounded-full border border-line bg-card px-2.5 py-1 text-[13px] text-ink"
                 >
                   {p.name ?? p.email ?? "Unknown"}
                 </li>
               ))}
             </ul>
           )}
-        </section>
-
-        <div className="order-1 lg:order-none">
-          <MeetingWorkspace
-            meetingId={meeting.id}
-            chunks={chunks}
-            videoUrl={recordingVideoUrl}
-            audioUrl={recordingAudioUrl}
-          />
         </div>
       </div>
+
+      <MeetingWorkspace
+        meetingId={meeting.id}
+        chunks={chunks}
+        videoUrl={recordingVideoUrl}
+        audioUrl={recordingAudioUrl}
+      />
     </div>
   );
 }

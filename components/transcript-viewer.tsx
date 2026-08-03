@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/empty-state";
+import { cn } from "@/lib/utils";
 
 export interface TranscriptChunkItem {
   id: string;
@@ -47,18 +48,25 @@ export function TranscriptViewer({
   chunks,
   onSeek,
   activeChunkId,
+  className,
 }: {
   chunks: TranscriptChunkItem[];
   /** Omit to render read-only timestamps (no recording to seek). */
   onSeek?: (startMs: number) => void;
   activeChunkId?: string | null;
+  className?: string;
 }) {
   if (chunks.length === 0) {
     return <EmptyState>No transcript available yet.</EmptyState>;
   }
 
   return (
-    <div className="max-h-[420px] overflow-y-auto rounded-xl border border-line bg-card">
+    <div
+      className={cn(
+        "max-h-[min(70vh,640px)] overflow-y-auto rounded-xl border border-line bg-card",
+        className,
+      )}
+    >
       <ol className="divide-y divide-line">
         {chunks.map((chunk) => {
           const isActive = chunk.id === activeChunkId;
