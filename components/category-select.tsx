@@ -111,7 +111,7 @@ export function CategorySelect(props: CategorySelectProps) {
     <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger
         disabled={pending}
-        className="flex items-center gap-1 rounded-full border border-line bg-card px-3 py-1.5 text-sm text-ink outline-none transition-colors hover:border-ink/30 disabled:opacity-50"
+        className="flex items-center gap-1 rounded-full border border-line bg-white/70 px-3 py-1.5 text-sm text-ink outline-none transition-colors hover:border-ink/30 hover:bg-white disabled:opacity-50"
       >
         {currentName}
         <ChevronDown className="h-3.5 w-3.5 text-ink-muted" strokeWidth={1.75} />

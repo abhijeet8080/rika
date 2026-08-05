@@ -11,8 +11,37 @@ interface Category {
 }
 
 function matches(meeting: MeetingListItem, query: string): boolean {
-  const haystack = `${meeting.title ?? ""} ${meeting.meetingUrl} ${meeting.platform ?? ""}`.toLowerCase();
+  const haystack =
+    `${meeting.title ?? ""} ${meeting.meetingUrl} ${meeting.platform ?? ""} ${meeting.summary ?? ""}`.toLowerCase();
   return haystack.includes(query);
+}
+
+function Section({
+  label,
+  count,
+  accent,
+  children,
+}: {
+  label: string;
+  count: number;
+  accent?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2
+          className={`section-label ${accent ? "text-rec" : ""}`}
+        >
+          {label}
+        </h2>
+        <span className="font-mono text-[11px] text-ink-muted tabular-nums">
+          {count}
+        </span>
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function MeetingsBrowser({
@@ -40,7 +69,7 @@ export function MeetingsBrowser({
   return (
     <div className="flex flex-col gap-8">
       {meetings.length > 0 && (
-        <div className="relative max-w-xs">
+        <div className="relative max-w-sm">
           <Search
             className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-muted"
             strokeWidth={1.75}
@@ -48,54 +77,46 @@ export function MeetingsBrowser({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search meetings..."
-            className="w-full pl-10"
+            placeholder="Search title, platform, notes…"
+            className="w-full bg-white/60 pl-10"
           />
         </div>
       )}
 
       {isSearching ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="font-mono text-[13px] tracking-wider text-ink-muted uppercase">
-            {filtered.length} result{filtered.length === 1 ? "" : "s"}
-          </h2>
+        <Section label="Search results" count={filtered.length}>
           <MeetingList
             meetings={filtered}
             categories={categories}
             emptyLabel="No meetings match your search."
           />
-        </section>
+        </Section>
       ) : (
         <>
-          <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[13px] tracking-wider text-ink-muted uppercase">
-              Upcoming &amp; in progress
-            </h2>
+          <Section label="Live & upcoming" count={upcoming.length}>
             <MeetingList
               meetings={upcoming}
               categories={categories}
-              emptyLabel="Nothing scheduled — join a meeting or connect your calendar."
+              emptyLabel="Nothing scheduled — join a meeting above or connect your calendar."
             />
-          </section>
+          </Section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="font-mono text-[13px] tracking-wider text-ink-muted uppercase">
-              Past
-            </h2>
+          <Section label="Past captures" count={past.length}>
             <MeetingList
               meetings={past}
               categories={categories}
               emptyLabel="No completed meetings yet."
             />
-          </section>
+          </Section>
 
           {failed.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-mono text-[13px] tracking-wider text-rec uppercase">
-                Failed to join
-              </h2>
-              <MeetingList meetings={failed} categories={categories} emptyLabel="" />
-            </section>
+            <Section label="Failed to join" count={failed.length} accent>
+              <MeetingList
+                meetings={failed}
+                categories={categories}
+                emptyLabel=""
+              />
+            </Section>
           )}
         </>
       )}

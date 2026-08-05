@@ -1,13 +1,13 @@
 "use client";
 
-import { ChevronRight, Trash2, Video } from "lucide-react";
+import { CheckSquare, ChevronRight, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
-import { Card } from "@/components/ui/card";
+import { formatMeetingWhen } from "@/lib/format-date";
 
 export interface MeetingListItem {
   id: string;
@@ -18,6 +18,8 @@ export interface MeetingListItem {
   scheduledStart: Date | null;
   startedAt: Date | null;
   categoryId: string | null;
+  summary: string | null;
+  actionItemCount: number;
 }
 
 interface Category {
@@ -25,15 +27,18 @@ interface Category {
   name: string;
 }
 
-function formatWhen(meeting: MeetingListItem): string {
-  const date = meeting.startedAt ?? meeting.scheduledStart;
-  if (!date) return "Not scheduled";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function platformLabel(platform: string | null): string {
+  if (!platform) return "Unknown";
+  if (platform === "google_meet") return "Meet";
+  if (platform === "microsoft_teams" || platform === "teams") return "Teams";
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+
+function railTone(status: string): string {
+  if (status === "done") return "bg-moss";
+  if (status.startsWith("fatal")) return "bg-rec";
+  if (status === "in_call_recording") return "bg-rec";
+  return "bg-ink-muted/40";
 }
 
 export function MeetingList({
@@ -67,82 +72,101 @@ export function MeetingList({
   return (
     <ul className="flex flex-col gap-2">
       {meetings.map((meeting) => (
-        <Card
-          as="li"
+        <li
           key={meeting.id}
-          className="group flex items-center gap-4 px-4 py-3 transition-colors hover:border-ink/25 hover:bg-white"
+          className="group relative flex overflow-hidden rounded-2xl border border-line/90 bg-card/80 transition-all hover:border-ink/20 hover:bg-white hover:shadow-[0_8px_30px_-18px_rgb(21_23_29_/_0.35)]"
         >
-          <Link
-            href={`/meetings/${meeting.id}`}
-            className="flex min-w-0 flex-1 items-center gap-4"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper-soft text-ink-muted">
-              <Video className="h-4 w-4" strokeWidth={1.75} />
-            </span>
-
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-ink">
-                {meeting.title ?? meeting.meetingUrl}
-              </span>
-              <span className="block truncate font-mono text-[12px] text-ink-muted">
-                {formatWhen(meeting)} · {meeting.platform ?? "unknown platform"}
-              </span>
-            </span>
-          </Link>
-
-          <CategorySelect
-            // Remount if this meeting's category or the overall category
-            // list changes underneath us (e.g. created/deleted from
-            // another row's picker) — CategorySelect only reads its
-            // initial props on mount.
-            key={`${meeting.categoryId ?? "none"}:${categories.length}`}
-            mode="bound"
-            meetingId={meeting.id}
-            initialCategoryId={meeting.categoryId}
-            categories={categories}
+          <span
+            aria-hidden
+            className={`w-1 shrink-0 ${railTone(meeting.status)}`}
           />
 
-          <Link
-            href={`/meetings/${meeting.id}`}
-            className="flex shrink-0 items-center gap-3"
-          >
-            <StatusBadge status={meeting.status} />
-            <ChevronRight
-              className="h-4 w-4 shrink-0 text-ink-muted transition-transform group-hover:translate-x-0.5"
-              strokeWidth={1.75}
-            />
-          </Link>
-
-          {confirmDeleteId === meeting.id ? (
-            <div className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
-              <button
-                type="button"
-                disabled={deletingId === meeting.id}
-                onClick={() => handleDelete(meeting.id)}
-                className="text-rec underline underline-offset-2 disabled:opacity-50"
-              >
-                {deletingId === meeting.id ? "Removing…" : "Remove"}
-              </button>
-              <button
-                type="button"
-                disabled={deletingId === meeting.id}
-                onClick={() => setConfirmDeleteId(null)}
-                className="text-ink-muted disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDeleteId(meeting.id)}
-              aria-label="Remove meeting"
-              className="shrink-0 rounded-lg p-1.5 text-ink-muted/60 transition-colors hover:bg-paper-soft hover:text-rec"
+          <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+            <Link
+              href={`/meetings/${meeting.id}`}
+              className="min-w-0 flex-1"
             >
-              <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-            </button>
-          )}
-        </Card>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate font-display text-[15px] font-semibold tracking-tight text-ink">
+                  {meeting.title ?? meeting.meetingUrl}
+                </span>
+                <StatusBadge status={meeting.status} />
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] tracking-wide text-ink-muted uppercase">
+                <span suppressHydrationWarning>
+                  {formatMeetingWhen(
+                    meeting.startedAt ?? meeting.scheduledStart,
+                  )}
+                </span>
+                <span className="text-line">·</span>
+                <span>{platformLabel(meeting.platform)}</span>
+                {meeting.actionItemCount > 0 && (
+                  <>
+                    <span className="text-line">·</span>
+                    <span className="inline-flex items-center gap-1 normal-case tracking-normal text-moss">
+                      <CheckSquare className="h-3 w-3" strokeWidth={2} />
+                      {meeting.actionItemCount} action
+                      {meeting.actionItemCount === 1 ? "" : "s"}
+                    </span>
+                  </>
+                )}
+              </div>
+              {meeting.summary && (
+                <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-muted">
+                  {meeting.summary}
+                </p>
+              )}
+            </Link>
+
+            <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+              <CategorySelect
+                key={`${meeting.categoryId ?? "none"}:${categories.length}`}
+                mode="bound"
+                meetingId={meeting.id}
+                initialCategoryId={meeting.categoryId}
+                categories={categories}
+              />
+
+              <Link
+                href={`/meetings/${meeting.id}`}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted transition-colors group-hover:bg-paper-soft group-hover:text-ink"
+                aria-label="Open meeting"
+              >
+                <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
+              </Link>
+
+              {confirmDeleteId === meeting.id ? (
+                <div className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
+                  <button
+                    type="button"
+                    disabled={deletingId === meeting.id}
+                    onClick={() => handleDelete(meeting.id)}
+                    className="text-rec underline underline-offset-2 disabled:opacity-50"
+                  >
+                    {deletingId === meeting.id ? "Removing…" : "Remove"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingId === meeting.id}
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="text-ink-muted disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(meeting.id)}
+                  aria-label="Remove meeting"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted/50 transition-colors hover:bg-rec/8 hover:text-rec"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              )}
+            </div>
+          </div>
+        </li>
       ))}
     </ul>
   );

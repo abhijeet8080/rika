@@ -1,11 +1,26 @@
 import {
   boolean,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+
+/** Extracted follow-up from a completed meeting transcript. */
+export type MeetingActionItem = {
+  text: string;
+  assignee: string | null;
+  dueHint: string | null;
+};
+
+/** Notable moment with optional timestamp for media seek. */
+export type MeetingHighlight = {
+  text: string;
+  speaker: string | null;
+  startMs: number | null;
+};
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -71,6 +86,12 @@ export const meetings = pgTable("meetings", {
   status: text("status").notNull(), // mirrors Recall bot lifecycle status
   recordingVideoUrl: text("recording_video_url"),
   recordingAudioUrl: text("recording_audio_url"),
+  // Post-meeting intelligence — filled after transcript is ready.
+  // Null until generated (or if generation failed); empty arrays mean
+  // "looked and found nothing", not "not yet run".
+  summary: text("summary"),
+  actionItems: jsonb("action_items").$type<MeetingActionItem[]>(),
+  highlights: jsonb("highlights").$type<MeetingHighlight[]>(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

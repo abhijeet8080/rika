@@ -6,7 +6,7 @@ export function LandingNav() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#FF3B2F]" />
-          <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[#15171D]">
+          <span className="font-brand text-4xl font-normal tracking-wide text-[#15171D]">
             Rika
           </span>
         </Link>

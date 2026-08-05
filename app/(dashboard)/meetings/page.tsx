@@ -25,6 +25,8 @@ export default async function MeetingsPage() {
         startedAt: meetings.startedAt,
         createdAt: meetings.createdAt,
         categoryId: meetings.categoryId,
+        summary: meetings.summary,
+        actionItems: meetings.actionItems,
       })
       .from(meetings)
       .where(eq(meetings.userId, userId))
@@ -35,20 +37,35 @@ export default async function MeetingsPage() {
       .where(eq(categories.userId, userId)),
   ]);
 
-  const activeCount = allMeetings.filter(
+  const listMeetings = allMeetings.map(({ actionItems, ...m }) => ({
+    ...m,
+    actionItemCount: actionItems?.length ?? 0,
+  }));
+
+  const activeCount = listMeetings.filter(
     (m) => m.status !== "done" && !m.status.startsWith("fatal"),
   ).length;
-  const capturedCount = allMeetings.filter((m) => m.status === "done").length;
+  const capturedCount = listMeetings.filter((m) => m.status === "done").length;
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8 sm:gap-10">
       <PageHeader
+        eyebrow="Studio"
         title="Meetings"
-        description={`${allMeetings.length} total · ${activeCount} active · ${capturedCount} captured`}
-        action={<JoinMeetingForm />}
+        description={
+          <span className="font-mono text-[13px] tracking-wide">
+            {listMeetings.length} total
+            <span className="mx-2 text-line">·</span>
+            {activeCount} active
+            <span className="mx-2 text-line">·</span>
+            {capturedCount} captured
+          </span>
+        }
       />
 
-      <MeetingsBrowser meetings={allMeetings} categories={userCategories} />
+      <JoinMeetingForm />
+
+      <MeetingsBrowser meetings={listMeetings} categories={userCategories} />
     </div>
   );
 }

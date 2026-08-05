@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { embedChunks } from "@/lib/ai/embeddings";
+import { generateMeetingIntelligence } from "@/lib/ai/meeting-intelligence";
 import { db } from "@/lib/db/client";
-import { meetings, participants, transcriptChunks } from "@/lib/db/schema";
+import {
+  meetings,
+  participants,
+  transcriptChunks,
+  type MeetingActionItem,
+  type MeetingHighlight,
+} from "@/lib/db/schema";
 import { upsertTranscriptChunks } from "@/lib/vector/transcript-chunks";
 import { retrieveBot } from "./client";
 import { TranscriptSchema, type TranscriptEntry } from "./types";
@@ -147,15 +154,48 @@ export async function processCompletedBot(botId: string): Promise<void> {
   // only after the call. Don't clobber a title already set at schedule
   // time (calendar-derived titles are more reliable than this).
   const metadataTitle = shortcuts.meeting_metadata?.data?.title;
+  const title = meeting.title ?? metadataTitle ?? null;
+
+  // Intelligence is best-effort — a failed summary must not leave the
+  // meeting stuck off "done" with chunks already written.
+  let summary: string | null = null;
+  let actionItems: MeetingActionItem[] | null = null;
+  let highlights: MeetingHighlight[] | null = null;
+
+  if (chunksWithIds.length > 0) {
+    try {
+      const intelligence = await generateMeetingIntelligence(
+        chunksWithIds.map((c) => ({
+          speaker: c.speaker,
+          startMs: c.startMs,
+          text: c.text,
+        })),
+        { title },
+      );
+      if (intelligence) {
+        summary = intelligence.summary;
+        actionItems = intelligence.actionItems;
+        highlights = intelligence.highlights;
+      }
+    } catch (err) {
+      console.error(
+        `Meeting intelligence failed for bot ${botId} (meeting ${meeting.id})`,
+        err,
+      );
+    }
+  }
 
   await db
     .update(meetings)
     .set({
       status: "done",
-      title: meeting.title ?? metadataTitle ?? null,
+      title,
       recordingVideoUrl: shortcuts.video_mixed?.data?.download_url ?? null,
       recordingAudioUrl: shortcuts.audio_mixed?.data?.download_url ?? null,
       endedAt: new Date(),
+      summary,
+      actionItems,
+      highlights,
     })
     .where(eq(meetings.id, meeting.id));
 }

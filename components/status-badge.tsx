@@ -20,6 +20,13 @@ function toneFor(status: string): { tone: Tone; label: string } {
   return { tone: "neutral", label };
 }
 
+const TONE_CLASSES: Record<Tone, string> = {
+  recording: "border-rec/25 bg-rec/8 text-rec",
+  captured: "border-moss/25 bg-moss/8 text-moss",
+  failed: "border-rec/30 bg-rec/10 text-rec",
+  neutral: "border-line bg-card text-ink-muted",
+};
+
 const DOT_CLASSES: Record<Tone, string> = {
   recording: "bg-rec animate-pulse",
   captured: "bg-moss",
@@ -31,8 +38,12 @@ export function StatusBadge({ status }: { status: string }) {
   const { tone, label } = toneFor(status);
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-2.5 py-1 font-mono text-[11px] tracking-wide text-ink-muted uppercase">
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLASSES[tone]}`} />
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wide uppercase ${TONE_CLASSES[tone]}`}
+    >
+      <span
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_CLASSES[tone]}`}
+      />
       {label}
     </span>
   );

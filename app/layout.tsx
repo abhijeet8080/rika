@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
+import {
+  Bitcount_Prop_Single,
+  Geist,
+  Geist_Mono,
+  Space_Grotesk,
+} from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
@@ -19,6 +24,12 @@ const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
 });
 
+const bitcountPropSingle = Bitcount_Prop_Single({
+  variable: "--font-brand",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: "Rika",
   description: "Meeting bot: join, capture, and ask about your meetings.",
@@ -33,7 +44,7 @@ export default function RootLayout({
     <ClerkProvider appearance={clerkAppearance}>
       <html
         lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} h-full antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${bitcountPropSingle.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">{children}</body>
       </html>

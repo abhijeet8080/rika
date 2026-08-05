@@ -6,7 +6,7 @@ export function LandingFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#FF3B2F]" />
-          <span className="font-[family-name:var(--font-display)] text-base font-semibold text-[#15171D]">
+          <span className="font-brand text-base font-medium tracking-wide text-[#15171D]">
             Rika
           </span>
           <span className="ml-2 font-mono text-[12px] text-[#5B5D66]">

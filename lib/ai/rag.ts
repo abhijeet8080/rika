@@ -1,12 +1,11 @@
-import { createDeepSeek } from "@ai-sdk/deepseek";
 import { generateObject, generateText, streamText, type ModelMessage } from "ai";
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { meetings } from "@/lib/db/schema";
-import { env } from "@/lib/env";
 import { qdrant, TRANSCRIPT_CHUNKS_COLLECTION } from "@/lib/vector/client";
 import { embedQuery } from "./embeddings";
+import { getChatModel } from "./model";
 
 // Not imported from lib/recall/live-chat.ts's BOT_DISPLAY_NAME (that would
 // be a circular import — live-chat.ts already imports from this file) and
@@ -59,18 +58,6 @@ async function needsMeetingContext(
     // silently skipping context that was actually needed.
     return true;
   }
-}
-
-// Lazy — reading env.DEEPSEEK_API_KEY at module load time would make any
-// build that imports this file fail before the key is even needed.
-let chatModel: ReturnType<ReturnType<typeof createDeepSeek>> | undefined;
-
-function getChatModel() {
-  if (!chatModel) {
-    const deepseek = createDeepSeek({ apiKey: env.DEEPSEEK_API_KEY });
-    chatModel = deepseek("deepseek-chat");
-  }
-  return chatModel;
 }
 
 export interface ChatScope {

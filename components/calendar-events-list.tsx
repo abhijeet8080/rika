@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
-import { Card } from "@/components/ui/card";
+import { formatMeetingWhen } from "@/lib/format-date";
 import { useCategories } from "@/lib/hooks/use-categories";
 
 interface CalendarEvent {
@@ -152,26 +152,26 @@ function CalendarEventsListContent({
       ) : (
         <ul className="flex flex-col gap-2">
           {events.map((event) => (
-            <Card as="li" key={event.id} className="flex flex-col gap-2 p-4">
-              <div className="flex items-center justify-between gap-4">
+            <li
+              key={event.id}
+              className="group flex flex-col gap-3 overflow-hidden rounded-2xl border border-line/90 bg-card/80 p-4 transition-colors hover:border-ink/20 hover:bg-white"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-ink">
+                  <p className="truncate font-display text-[15px] font-semibold tracking-tight text-ink">
                     {event.title ?? "Untitled meeting"}
                   </p>
-                  <p className="truncate font-mono text-[12px] text-ink-muted">
-                    {new Date(event.start_time).toLocaleString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}{" "}
-                    ·{" "}
+                  <p
+                    className="mt-1 truncate font-mono text-[11px] tracking-wide text-ink-muted uppercase"
+                    suppressHydrationWarning
+                  >
+                    {formatMeetingWhen(event.start_time)} ·{" "}
                     {event.accountEmail ??
                       PROVIDER_LABELS[event.provider] ??
                       event.provider}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {!event.bots?.length && (
                     <>
                       <CategorySelect
@@ -242,7 +242,11 @@ function CalendarEventsListContent({
                       !!event.bots?.length ||
                       schedulingId === event.id
                     }
-                    className="shrink-0 rounded-full border border-line px-4 py-1.5 text-sm text-ink transition-colors hover:border-ink/30 disabled:opacity-50"
+                    className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 ${
+                      event.bots?.length
+                        ? "border border-rec/25 bg-rec/8 text-rec"
+                        : "bg-ink text-paper hover:bg-ink/85"
+                    }`}
                   >
                     {event.bots?.length
                       ? "Recording"
@@ -257,7 +261,7 @@ function CalendarEventsListContent({
                   {recordErrors[event.id]}
                 </p>
               )}
-            </Card>
+            </li>
           ))}
         </ul>
       )}

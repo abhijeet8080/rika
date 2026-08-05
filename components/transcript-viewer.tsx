@@ -61,21 +61,18 @@ export function TranscriptViewer({
   }
 
   return (
-    <div
-      className={cn(
-        "max-h-[min(70vh,640px)] overflow-y-auto rounded-xl border border-line bg-card",
-        className,
-      )}
-    >
-      <ol className="divide-y divide-line">
+    <div className={cn("max-h-[min(70vh,640px)] overflow-y-auto", className)}>
+      <ol className="flex flex-col gap-1">
         {chunks.map((chunk) => {
           const isActive = chunk.id === activeChunkId;
           return (
             <li
               key={chunk.id}
               data-chunk-id={chunk.id}
-              className={`flex gap-3 px-4 py-3 transition-colors ${
-                isActive ? "bg-paper-soft" : ""
+              className={`flex gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+                isActive
+                  ? "bg-white shadow-[inset_3px_0_0_0_var(--color-rec)]"
+                  : "hover:bg-white/60"
               }`}
             >
               <SpeakerAvatar name={chunk.speaker} />
@@ -88,12 +85,12 @@ export function TranscriptViewer({
                     <button
                       type="button"
                       onClick={() => onSeek(chunk.startMs)}
-                      className="font-mono text-[12px] text-ink-muted underline underline-offset-2 hover:text-ink"
+                      className="font-mono text-[11px] tracking-wide text-ink-muted tabular-nums underline-offset-2 hover:text-ink hover:underline"
                     >
                       {formatTimestamp(chunk.startMs)}
                     </button>
                   ) : (
-                    <span className="font-mono text-[12px] text-ink-muted">
+                    <span className="font-mono text-[11px] tracking-wide text-ink-muted tabular-nums">
                       {formatTimestamp(chunk.startMs)}
                     </span>
                   )}

@@ -5,8 +5,9 @@ export default function CrossMeetingChatPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Ask about your meetings"
-        description="Scope your question to a category, or search everything uncategorized."
+        eyebrow="Ask"
+        title="Chat across meetings"
+        description="Scope to a category — or uncategorized — and ask Rika what was said across those calls."
       />
       <CategoryChat />
     </div>
