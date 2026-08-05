@@ -88,6 +88,20 @@ export async function retrieveChunks(
   let filter: object;
 
   if (scope.meetingId) {
+    // Verify the caller actually owns this meeting before filtering Qdrant
+    // by it — meetingId comes straight from client input (see
+    // app/api/chat/route.ts), so without this check any signed-in user
+    // could read another user's transcript by guessing/observing their
+    // meeting id.
+    const [owned] = await db
+      .select({ id: meetings.id })
+      .from(meetings)
+      .where(
+        and(eq(meetings.id, scope.meetingId), eq(meetings.userId, scope.userId)),
+      );
+
+    if (!owned) return [];
+
     filter = { must: [{ key: "meeting_id", match: { value: scope.meetingId } }] };
   } else if (scope.categoryId || scope.uncategorizedOnly) {
     // Category membership is resolved from Postgres at query time rather
