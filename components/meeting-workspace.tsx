@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Download } from "lucide-react";
 import { AudioPlayer } from "@/components/audio-player";
 import { ChatPanel } from "@/components/chat-panel";
 import { MeetingNotes } from "@/components/meeting-notes";
@@ -9,6 +10,12 @@ import type {
   MeetingActionItem,
   MeetingHighlight,
 } from "@/lib/db/schema";
+
+const EXPORT_FORMATS = [
+  { format: "txt", label: "TXT" },
+  { format: "srt", label: "SRT" },
+  { format: "pdf", label: "PDF" },
+] as const;
 
 type Tab = "notes" | "transcript" | "chat";
 
@@ -43,6 +50,8 @@ export function MeetingWorkspace({
 
   const hasRecording = Boolean(videoUrl || audioUrl);
   const canGenerate = status === "done" && chunks.length > 0;
+  const canExport = chunks.length > 0;
+  const [exportOpen, setExportOpen] = useState(false);
 
   function handleSeek(startMs: number) {
     const media = mediaRef.current;
@@ -120,24 +129,61 @@ export function MeetingWorkspace({
       )}
 
       <div className="surface-panel flex min-h-[min(50vh,420px)] min-w-0 flex-col overflow-hidden lg:min-h-0">
-        <div className="flex shrink-0 gap-1 border-b border-line px-3 pt-3">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`relative rounded-t-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? "bg-paper text-ink"
-                  : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              {t.label}
-              {tab === t.id && (
-                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-rec" />
+        <div className="flex shrink-0 items-center justify-between gap-1 border-b border-line px-3 pt-3">
+          <div className="flex gap-1">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`relative rounded-t-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                  tab === t.id
+                    ? "bg-paper text-ink"
+                    : "text-ink-muted hover:text-ink"
+                }`}
+              >
+                {t.label}
+                {tab === t.id && (
+                  <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-rec" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {canExport && (
+            <div className="relative mb-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setExportOpen((open) => !open)}
+                className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
+              >
+                <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+                Export
+              </button>
+              {exportOpen && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Close export menu"
+                    className="fixed inset-0 z-10 cursor-default"
+                    onClick={() => setExportOpen(false)}
+                  />
+                  <div className="absolute right-0 z-20 mt-1.5 w-32 overflow-hidden rounded-lg border border-line bg-card shadow-lg">
+                    {EXPORT_FORMATS.map(({ format, label }) => (
+                      <a
+                        key={format}
+                        href={`/api/meetings/${meetingId}/export?format=${format}`}
+                        onClick={() => setExportOpen(false)}
+                        className="block px-3 py-2 text-[13px] text-ink transition-colors hover:bg-paper-soft"
+                      >
+                        {label}
+                      </a>
+                    ))}
+                  </div>
+                </>
               )}
-            </button>
-          ))}
+            </div>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 bg-paper/50 p-4">
