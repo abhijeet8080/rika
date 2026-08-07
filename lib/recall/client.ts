@@ -62,7 +62,7 @@ function getRecordingConfig({
 //
 // bot_detection is shortened from Recall's default (~12 min: 120s
 // activate_after + 600s timeout) to ~90s — that default only became a
-// real problem for us because our own bot_name ("Rika(Abhijeet's
+// real problem for us because our own bot_name ("RIKA"
 // Assistant)") matches the built-in using_participant_names pattern, so
 // two Rika bots in the same call (see findActiveMeetingForUrl, which
 // should prevent that going forward) would otherwise keep each other

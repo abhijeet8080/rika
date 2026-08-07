@@ -8,7 +8,7 @@ import { sendChatMessage } from "./client";
 // match `botName` passed to createBot/scheduleCalendarBot exactly, or
 // the self-message guard below breaks and Rika starts replying to
 // herself in a loop.
-export const BOT_DISPLAY_NAME = "Rika(Abhijeet's Assistant)";
+export const BOT_DISPLAY_NAME = "RIKA";
 
 // Directed at Rika if the message starts with her name, optionally
 // preceded by "@" and followed by punctuation/whitespace before the
