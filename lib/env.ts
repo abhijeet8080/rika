@@ -50,4 +50,11 @@ export const env = {
   get APP_BASE_URL() {
     return required("APP_BASE_URL");
   },
+  // Upstash Redis REST API — backs rate limiting (lib/rate-limit.ts).
+  get UPSTASH_REDIS_REST_URL() {
+    return required("UPSTASH_REDIS_REST_URL");
+  },
+  get UPSTASH_REDIS_REST_TOKEN() {
+    return required("UPSTASH_REDIS_REST_TOKEN");
+  },
 };

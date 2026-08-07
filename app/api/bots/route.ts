@@ -2,6 +2,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { findActiveMeetingForUrl } from "@/lib/db/meetings";
 import { meetings } from "@/lib/db/schema";
+import { rateLimit } from "@/lib/rate-limit";
 import { createBot } from "@/lib/recall/client";
 import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
 import { detectPlatform } from "@/lib/recall/platform";
@@ -20,6 +21,9 @@ export async function POST(request: Request) {
   }
 
   const userId = await getCurrentUserId();
+
+  const limited = await rateLimit("bots", userId);
+  if (limited) return limited;
 
   // Covers the case a calendar auto-record already dispatched a bot for
   // this same meeting (or a previous manual join did) — without this,

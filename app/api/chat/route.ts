@@ -6,6 +6,7 @@ import {
 } from "ai";
 import { answerQuestion } from "@/lib/ai/rag";
 import { getCurrentUserId } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
   }
 
   const userId = await getCurrentUserId();
+
+  const limited = await rateLimit("chat", userId);
+  if (limited) return limited;
+
   const result = await answerQuestion(await convertToModelMessages(messages), {
     userId,
     meetingId,

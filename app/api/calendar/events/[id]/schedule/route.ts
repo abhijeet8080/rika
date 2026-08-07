@@ -1,4 +1,5 @@
 import { getCurrentUserId } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 import { scheduleBotForCalendarEvent } from "@/lib/recall/schedule-event";
 
 export async function POST(
@@ -25,6 +26,9 @@ export async function POST(
   }
 
   const userId = await getCurrentUserId();
+
+  const limited = await rateLimit("bots", userId);
+  if (limited) return limited;
 
   try {
     const meeting = await scheduleBotForCalendarEvent(userId, id, icalUid, {

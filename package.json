@@ -22,6 +22,8 @@
     "@neondatabase/serverless": "^1.1.0",
     "@qdrant/js-client-rest": "^1.18.0",
     "@react-pdf/renderer": "^4.5.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.2",
     "ai": "^7.0.41",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

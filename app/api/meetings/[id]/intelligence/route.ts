@@ -3,6 +3,7 @@ import { generateMeetingIntelligence } from "@/lib/ai/meeting-intelligence";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { meetings, transcriptChunks } from "@/lib/db/schema";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -12,6 +13,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const userId = await getCurrentUserId();
+
+  const limited = await rateLimit("intelligence", userId);
+  if (limited) return limited;
 
   const [meeting] = await db
     .select()
