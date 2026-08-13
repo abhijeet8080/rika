@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
+import { useToast } from "@/components/ui/toaster";
 import { formatMeetingWhen } from "@/lib/format-date";
 import { useCategories } from "@/lib/hooks/use-categories";
 
@@ -46,6 +47,7 @@ function CalendarEventsListContent({
   const [videoPrefs, setVideoPrefs] = useState<Record<string, boolean>>({});
   const [audioPrefs, setAudioPrefs] = useState<Record<string, boolean>>({});
   const { categories } = useCategories();
+  const { toast } = useToast();
 
   // Derived, not synced via effect: if a selection points at a category
   // deleted (elsewhere) since it was picked, treat it as unset rather
@@ -118,6 +120,11 @@ function CalendarEventsListContent({
           e.id === event.id ? { ...e, bots: [{ bot_id: "pending" }] } : e,
         ),
       );
+      toast({
+        title: "Rika will join this meeting",
+        description: "Bot scheduled — she'll record and transcribe the call.",
+        tone: "success",
+      });
       return;
     }
 

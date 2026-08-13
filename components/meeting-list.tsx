@@ -7,6 +7,7 @@ import { useState } from "react";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { useToast } from "@/components/ui/toaster";
 import { formatMeetingWhen } from "@/lib/format-date";
 
 export interface MeetingListItem {
@@ -27,7 +28,7 @@ interface Category {
   name: string;
 }
 
-function platformLabel(platform: string | null): string {
+export function platformLabel(platform: string | null): string {
   if (!platform) return "Unknown";
   if (platform === "google_meet") return "Meet";
   if (platform === "microsoft_teams" || platform === "teams") return "Teams";
@@ -51,16 +52,33 @@ export function MeetingList({
   emptyLabel: string;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     setDeletingId(id);
-    const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
-    setDeletingId(null);
-    setConfirmDeleteId(null);
-    if (res.ok) {
-      router.refresh();
+    try {
+      const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast({ title: "Meeting removed", tone: "success" });
+        router.refresh();
+      } else {
+        toast({
+          title: "Couldn't remove the meeting",
+          description: `Request failed (${res.status}) — try again.`,
+          tone: "error",
+        });
+      }
+    } catch {
+      toast({
+        title: "Couldn't remove the meeting",
+        description: "Network error — check your connection and try again.",
+        tone: "error",
+      });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   }
 

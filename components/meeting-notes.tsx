@@ -8,6 +8,7 @@ import type {
   MeetingHighlight,
 } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toaster";
 
 function formatTimestamp(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -33,6 +34,7 @@ export function MeetingNotes({
   canGenerate?: boolean;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +56,11 @@ export function MeetingNotes({
         } | null;
         throw new Error(body?.error ?? "Failed to generate notes");
       }
+      toast({
+        title: "Notes ready",
+        description: "Summary, action items, and highlights were updated.",
+        tone: "success",
+      });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate notes");

@@ -15,17 +15,17 @@ export async function POST(request: Request) {
     messages,
     meetingId,
     categoryId,
-    uncategorizedOnly,
   }: {
     messages: UIMessage[];
     meetingId?: string;
     categoryId?: string;
-    uncategorizedOnly?: boolean;
   } = await request.json();
 
-  if (!meetingId && !categoryId && !uncategorizedOnly) {
+  // Web chat is deliberately scoped: a single meeting or one category.
+  // There is no "all meetings" / uncategorized surface here.
+  if (!meetingId && !categoryId) {
     return Response.json(
-      { error: "One of meetingId, categoryId, or uncategorizedOnly is required" },
+      { error: "meetingId or categoryId is required" },
       { status: 400 },
     );
   }
@@ -39,7 +39,6 @@ export async function POST(request: Request) {
     userId,
     meetingId,
     categoryId,
-    uncategorizedOnly,
   });
 
   return createUIMessageStreamResponse({

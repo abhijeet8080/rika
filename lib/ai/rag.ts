@@ -66,10 +66,14 @@ export interface ChatScope {
   meetingId?: string;
   /** Ignored if meetingId is set. */
   categoryId?: string;
-  /** Meetings with no category. Ignored if meetingId or categoryId is set. */
+  /** Meetings with no category. Never sent by web chat — this is only the
+      live in-meeting @Rika fallback when the active meeting has no
+      category (see lib/recall/live-chat.ts). Ignored if meetingId or
+      categoryId is set. */
   uncategorizedOnly?: boolean;
-  // At least one of meetingId/categoryId/uncategorizedOnly is required —
-  // there is no unscoped "every meeting" retrieval.
+  // Web chat requires meetingId or categoryId (enforced in
+  // app/api/chat/route.ts) — there is no unscoped "every meeting"
+  // retrieval surface.
 }
 
 export interface RetrievedChunk {

@@ -185,6 +185,67 @@
     box-shadow: 0 0 0 0 rgb(255 59 47 / 0.45);
     animation: rec-pulse 2.2s ease-out infinite;
   }
+
+  /* Scrubbable progress track for the AudioPlayer — the played portion is
+     painted via an inline gradient on the input itself (webkit) and
+     ::-moz-range-progress (Firefox). */
+  .seek-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-line);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .seek-slider:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+
+  .seek-slider:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 4px;
+  }
+
+  .seek-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 13px;
+    width: 13px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+    border: 2px solid var(--color-card);
+    box-shadow: 0 1px 3px rgb(21 23 29 / 0.28);
+    transition: transform 140ms ease;
+  }
+
+  .seek-slider:hover::-webkit-slider-thumb,
+  .seek-slider:focus-visible::-webkit-slider-thumb {
+    transform: scale(1.18);
+  }
+
+  .seek-slider::-moz-range-thumb {
+    height: 13px;
+    width: 13px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+    border: 2px solid var(--color-card);
+    box-shadow: 0 1px 3px rgb(21 23 29 / 0.28);
+  }
+
+  .seek-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-line);
+  }
+
+  .seek-slider::-moz-range-progress {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-ink);
+  }
 }
 
 @keyframes rec-pulse {

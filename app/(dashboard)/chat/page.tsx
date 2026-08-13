@@ -3,11 +3,11 @@ import { PageHeader } from "@/components/ui/page-header";
 
 export default function CrossMeetingChatPage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Ask"
-        title="Chat across meetings"
-        description="Scope to a category — or uncategorized — and ask Rika what was said across those calls."
+        title="Chat across a category"
+        description="Each category bundles related calls — pick one and ask Rika anything across the whole series. For a single meeting, open it and use the Ask Rika tab."
       />
       <CategoryChat />
     </div>

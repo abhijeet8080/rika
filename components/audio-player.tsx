@@ -29,6 +29,16 @@ export function AudioPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  // Non-null while the user is dragging the seek thumb — playback time
+  // updates are ignored until the scrub commits, so the slider doesn't
+  // fight the user's finger.
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+
+  const canSeek = Number.isFinite(duration) && duration > 0;
+  const shownTime = scrubTime ?? currentTime;
+  const progressPct = canSeek
+    ? Math.min(100, Math.max(0, (shownTime / duration) * 100))
+    : 0;
 
   function togglePlay() {
     const audio = audioRef.current;
@@ -56,8 +66,16 @@ export function AudioPlayer({
     if (audio) audio.playbackRate = next;
   }
 
+  function commitScrub(value: number) {
+    const audio = audioRef.current;
+    const clamped = Math.min(Math.max(value, 0), duration || value);
+    if (audio) audio.currentTime = clamped;
+    setCurrentTime(clamped);
+    setScrubTime(null);
+  }
+
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-line bg-card px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-line bg-card px-4 py-3">
       <audio
         ref={(el) => {
           audioRef.current = el;
@@ -69,64 +87,99 @@ export function AudioPlayer({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onEnded={() => setPlaying(false)}
         onTimeUpdate={(e) => {
           setCurrentTime(e.currentTarget.currentTime);
           onTimeUpdate?.();
         }}
       />
 
-      <span className="shrink-0 font-mono text-[12px] text-ink-muted tabular-nums">
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </span>
+      {/* Seek */}
+      <div className="flex items-center gap-3">
+        <span className="w-10 shrink-0 font-mono text-[12px] text-ink-muted tabular-nums">
+          {formatTime(shownTime)}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={canSeek ? duration : 0}
+          step={0.1}
+          value={shownTime}
+          disabled={!canSeek}
+          aria-label="Seek recording"
+          onChange={(e) => setScrubTime(Number(e.target.value))}
+          onPointerUp={() => {
+            if (scrubTime !== null) commitScrub(scrubTime);
+          }}
+          onKeyUp={() => {
+            if (scrubTime !== null) commitScrub(scrubTime);
+          }}
+          onBlur={() => {
+            if (scrubTime !== null) commitScrub(scrubTime);
+          }}
+          className="seek-slider min-w-0 flex-1"
+          style={{
+            background: `linear-gradient(to right, var(--color-ink) ${progressPct}%, var(--color-line) ${progressPct}%)`,
+          }}
+        />
+        <span className="w-10 shrink-0 text-right font-mono text-[12px] text-ink-muted tabular-nums">
+          {formatTime(duration)}
+        </span>
+      </div>
 
-      <div className="flex flex-1 items-center justify-center gap-3">
+      {/* Transport */}
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={cycleSpeed}
-          className="rounded-full border border-line px-2 py-1 font-mono text-[11px] text-ink-muted hover:border-ink/30 hover:text-ink"
+          aria-label={`Playback speed ${speed}x — tap to change`}
+          className="rounded-full border border-line px-2 py-1 font-mono text-[11px] text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
         >
           {speed}×
         </button>
-        <button
-          type="button"
-          onClick={() => skip(-SKIP_SECONDS)}
-          aria-label={`Back ${SKIP_SECONDS} seconds`}
-          className="text-ink-muted hover:text-ink"
-        >
-          <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-        <button
-          type="button"
-          onClick={togglePlay}
-          aria-label={playing ? "Pause" : "Play"}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper transition-colors hover:bg-ink/85"
-        >
-          {playing ? (
-            <Pause className="h-4 w-4" fill="currentColor" strokeWidth={0} />
-          ) : (
-            <Play className="ml-0.5 h-4 w-4" fill="currentColor" strokeWidth={0} />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => skip(SKIP_SECONDS)}
-          aria-label={`Forward ${SKIP_SECONDS} seconds`}
-          className="text-ink-muted hover:text-ink"
-        >
-          <RotateCw className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      </div>
 
-      <a
-        href={src}
-        download
-        target="_blank"
-        rel="noreferrer"
-        aria-label="Download recording"
-        className="shrink-0 text-ink-muted hover:text-ink"
-      >
-        <Download className="h-4 w-4" strokeWidth={1.75} />
-      </a>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => skip(-SKIP_SECONDS)}
+            aria-label={`Back ${SKIP_SECONDS} seconds`}
+            className="text-ink-muted transition-colors hover:text-ink"
+          >
+            <RotateCcw className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={playing ? "Pause" : "Play"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper transition-colors hover:bg-ink/85"
+          >
+            {playing ? (
+              <Pause className="h-4 w-4" fill="currentColor" strokeWidth={0} />
+            ) : (
+              <Play className="ml-0.5 h-4 w-4" fill="currentColor" strokeWidth={0} />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => skip(SKIP_SECONDS)}
+            aria-label={`Forward ${SKIP_SECONDS} seconds`}
+            className="text-ink-muted transition-colors hover:text-ink"
+          >
+            <RotateCw className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </div>
+
+        <a
+          href={src}
+          download
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Download recording"
+          className="shrink-0 text-ink-muted transition-colors hover:text-ink"
+        >
+          <Download className="h-4 w-4" strokeWidth={1.75} />
+        </a>
+      </div>
     </div>
   );
 }

@@ -2,8 +2,8 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ArrowUp, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { ArrowUp, Sparkles, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 
@@ -14,96 +14,129 @@ import { Input } from "@/components/ui/input";
 export function ChatPanel({
   meetingId,
   categoryId,
-  uncategorizedOnly,
+  suggestions,
 }: {
   meetingId?: string;
   categoryId?: string;
-  uncategorizedOnly?: boolean;
+  /** Clickable prompts shown on an empty thread — clicking sends one. */
+  suggestions?: string[];
 }) {
   const [transport] = useState(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { meetingId, categoryId, uncategorizedOnly },
+        body: { meetingId, categoryId },
       }),
   );
   const { messages, sendMessage, status } = useChat({ transport });
   const [input, setInput] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const isBusy = status !== "ready" && status !== "error";
+
+  // Keep the newest message / streaming tokens / typing dots in view.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, status]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isBusy) return;
     sendMessage({ text: input });
     setInput("");
   }
 
-  const isBusy = status !== "ready" && status !== "error";
-
   const placeholder = meetingId
     ? "Ask about this meeting…"
-    : categoryId || uncategorizedOnly
-      ? "Ask about these meetings…"
-      : "Ask about any of your meetings…";
+    : "Ask across these meetings…";
 
   return (
-    <div
-      className={`flex flex-col gap-4 ${meetingId ? "h-full min-h-0" : ""}`}
-    >
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <div
         className={`min-h-0 flex-1 ${messages.length === 0 ? "" : "overflow-y-auto"}`}
       >
         {messages.length === 0 ? (
-          <EmptyState
-            icon={<Sparkles className="h-4 w-4" strokeWidth={1.75} />}
-            className={meetingId ? "h-full min-h-[180px] py-10" : "py-14"}
-          >
-            {meetingId
-              ? "Ask what was decided, who owns a follow-up, or what someone said."
-              : "Pick a category above, then ask across those meetings."}
-          </EmptyState>
-        ) : (
-          <ul className="flex flex-col gap-3 pb-1">
-            {messages.map((message) => (
-              <li
-                key={message.id}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap ${
-                    message.role === "user"
-                      ? "rounded-2xl rounded-br-md bg-ink text-paper"
-                      : "rounded-2xl rounded-bl-md border border-line bg-white/70 text-ink"
-                  }`}
-                >
-                  {message.role === "assistant" && (
-                    <p className="mb-1.5 font-mono text-[10px] tracking-wider text-ink-muted uppercase">
-                      Rika
-                    </p>
-                  )}
-                  {message.parts.map((part, i) =>
-                    part.type === "text" ? (
-                      <span key={i}>{part.text}</span>
-                    ) : null,
-                  )}
-                </div>
-              </li>
-            ))}
-            {status === "submitted" && (
-              <li className="flex justify-start">
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-line bg-white/70 px-4 py-3">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec" />
-                </div>
-              </li>
+          <div className="flex h-full min-h-0 flex-col">
+            <EmptyState
+              icon={<Sparkles className="h-4 w-4" strokeWidth={1.75} />}
+              className="h-full min-h-[160px] border-0 bg-transparent py-8"
+            >
+              {meetingId
+                ? "Ask what was decided, who owns a follow-up, or what someone said."
+                : "Ask across this category — decisions, open action items, who said what."}
+            </EmptyState>
+            {suggestions && suggestions.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {suggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => sendMessage({ text: suggestion })}
+                    className="rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-[13px] text-ink-muted transition-colors hover:border-ink/30 hover:bg-white hover:text-ink disabled:opacity-50"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
             )}
-          </ul>
+          </div>
+        ) : (
+          <>
+            <ul className="flex flex-col gap-3 pb-1">
+              {messages.map((message) => (
+                <li
+                  key={message.id}
+                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap ${
+                      message.role === "user"
+                        ? "rounded-2xl rounded-br-md bg-ink text-paper"
+                        : "rounded-2xl rounded-bl-md border border-line bg-white/70 text-ink"
+                    }`}
+                  >
+                    {message.role === "assistant" && (
+                      <p className="mb-1.5 font-mono text-[10px] tracking-wider text-ink-muted uppercase">
+                        Rika
+                      </p>
+                    )}
+                    {message.parts.map((part, i) =>
+                      part.type === "text" ? (
+                        <span key={i}>{part.text}</span>
+                      ) : null,
+                    )}
+                  </div>
+                </li>
+              ))}
+              {status === "submitted" && (
+                <li className="flex justify-start">
+                  <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-line bg-white/70 px-4 py-3">
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.2s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.1s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec" />
+                  </div>
+                </li>
+              )}
+            </ul>
+            <div ref={bottomRef} />
+          </>
         )}
       </div>
 
+      {status === "error" && (
+        <div
+          role="alert"
+          className="flex shrink-0 items-center gap-2 rounded-xl border border-rec/25 bg-rec/8 px-3.5 py-2.5 text-[13px] text-rec"
+        >
+          <TriangleAlert className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          Something went wrong — check your connection and try again.
+        </div>
+      )}
+
       <form
         onSubmit={handleSubmit}
-        className="flex items-center gap-2 rounded-full border border-line bg-white/80 p-1.5 shadow-[0_1px_0_rgb(21_23_29_/_0.04)]"
+        className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-white/80 p-1.5 shadow-[0_1px_0_rgb(21_23_29_/_0.04)]"
       >
         <Input
           value={input}

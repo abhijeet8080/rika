@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { CalendarDays, MessageSquareText, Video } from "lucide-react";
+import { ToastProvider } from "@/components/ui/toaster";
 
 const navItems = [
   { href: "/meetings", label: "Meetings", icon: Video },
@@ -18,13 +19,14 @@ export default function DashboardLayout({
   const isMeetingWorkspace = /^\/meetings\/[^/]+$/.test(pathname);
 
   return (
-    <div
-      className={
-        isMeetingWorkspace
-          ? "bg-studio flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden"
-          : "bg-studio flex flex-1 flex-col"
-      }
-    >
+    <ToastProvider>
+      <div
+        className={
+          isMeetingWorkspace
+            ? "bg-studio flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden"
+            : "bg-studio flex flex-1 flex-col"
+        }
+      >
       <header className="sticky top-0 z-50 shrink-0 border-b border-line/80 bg-paper/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1920px] items-center gap-6 px-5 sm:px-8">
           <Link
@@ -90,6 +92,7 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
-    </div>
+      </div>
+    </ToastProvider>
   );
 }
