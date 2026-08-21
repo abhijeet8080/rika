@@ -33,6 +33,10 @@ const bitcountPropSingle = Bitcount_Prop_Single({
 export const metadata: Metadata = {
   title: "Rika",
   description: "Meeting bot: join, capture, and ask about your meetings.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
