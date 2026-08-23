@@ -18,12 +18,13 @@ const PROVIDERS = [
     hint: "Personal or work Google accounts",
     connectHref: "/api/calendar/google/connect",
   },
-  {
-    id: "microsoft_outlook",
-    label: "Outlook Calendar",
-    hint: "Microsoft 365 / Outlook.com",
-    connectHref: "/api/calendar/outlook/connect",
-  },
+  // Outlook integration disabled for now — not yet ready to promote.
+  // {
+  //   id: "microsoft_outlook",
+  //   label: "Outlook Calendar",
+  //   hint: "Microsoft 365 / Outlook.com",
+  //   connectHref: "/api/calendar/outlook/connect",
+  // },
 ] as const;
 
 export default async function CalendarSettingsPage() {
