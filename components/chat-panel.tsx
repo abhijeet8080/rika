@@ -4,8 +4,54 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { ArrowUp, Sparkles, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
+
+const markdownComponents = {
+  p: ({ ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+  ul: ({ ...props }) => (
+    <ul className="mb-2 list-disc space-y-0.5 pl-4 last:mb-0" {...props} />
+  ),
+  ol: ({ ...props }) => (
+    <ol className="mb-2 list-decimal space-y-0.5 pl-4 last:mb-0" {...props} />
+  ),
+  li: ({ ...props }) => <li {...props} />,
+  strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
+  a: ({ ...props }) => (
+    <a
+      className="underline underline-offset-2 hover:no-underline"
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    />
+  ),
+  code: ({ ...props }) => (
+    <code
+      className="rounded bg-ink/8 px-1 py-0.5 font-mono text-[12.5px]"
+      {...props}
+    />
+  ),
+  pre: ({ ...props }) => (
+    <pre
+      className="mb-2 overflow-x-auto rounded-lg bg-ink/8 p-2.5 text-[12.5px] last:mb-0"
+      {...props}
+    />
+  ),
+  table: ({ ...props }) => (
+    <div className="mb-2 overflow-x-auto last:mb-0">
+      <table className="border-collapse text-[13px]" {...props} />
+    </div>
+  ),
+  th: ({ ...props }) => (
+    <th
+      className="border border-line px-2 py-1 text-left font-semibold"
+      {...props}
+    />
+  ),
+  td: ({ ...props }) => <td className="border border-line px-2 py-1" {...props} />,
+} satisfies React.ComponentProps<typeof ReactMarkdown>["components"];
 
 // The transport is only built once, on mount — if the scope needs to
 // change (e.g. the user picks a different category), remount this
@@ -90,9 +136,9 @@ export function ChatPanel({
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap ${
+                    className={`max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed ${
                       message.role === "user"
-                        ? "rounded-2xl rounded-br-md bg-ink text-paper"
+                        ? "rounded-2xl rounded-br-md bg-ink text-paper whitespace-pre-wrap"
                         : "rounded-2xl rounded-bl-md border border-line bg-white/70 text-ink"
                     }`}
                   >
@@ -102,9 +148,18 @@ export function ChatPanel({
                       </p>
                     )}
                     {message.parts.map((part, i) =>
-                      part.type === "text" ? (
+                      part.type !== "text" ? null : message.role ===
+                        "assistant" ? (
+                        <ReactMarkdown
+                          key={i}
+                          remarkPlugins={[remarkGfm]}
+                          components={markdownComponents}
+                        >
+                          {part.text}
+                        </ReactMarkdown>
+                      ) : (
                         <span key={i}>{part.text}</span>
-                      ) : null,
+                      ),
                     )}
                   </div>
                 </li>
