@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { JoinMeetingForm } from "@/components/join-meeting-form";
+import { getDefaultRecallAccountId, getRecallAccountChoices } from "@/lib/recall/accounts";
 import { MeetingsBrowser } from "@/components/meetings-browser";
 import { PageHeader } from "@/components/ui/page-header";
 import { getCurrentUserId } from "@/lib/auth";
@@ -63,7 +64,7 @@ export default async function MeetingsPage() {
         }
       />
 
-      <JoinMeetingForm />
+      <JoinMeetingForm recallAccounts={getRecallAccountChoices()} defaultRecallAccount={getDefaultRecallAccountId()} />
 
       <MeetingsBrowser meetings={listMeetings} categories={userCategories} />
     </div>

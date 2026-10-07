@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "@/lib/db/client";
-import { calendarConnections } from "@/lib/db/schema";
+import { calendarConnections, meetings } from "@/lib/db/schema";
 import { listCalendarEvents, retrieveCalendar } from "@/lib/recall/client";
 import { handleLiveChatMessage } from "@/lib/recall/live-chat";
 import { markBotFatal, processCompletedBot } from "@/lib/recall/process-meeting";
@@ -11,7 +11,7 @@ import {
   RecallCalendarWebhookPayloadSchema,
   RecallChatMessageWebhookPayloadSchema,
 } from "@/lib/recall/types";
-import { verifyRecallWebhookSignature } from "@/lib/recall/verify-webhook";
+import { getRecallWebhookAccount } from "@/lib/recall/verify-webhook";
 
 // The response itself acks in well under a second (all real work happens
 // in after()), but after() still runs within this function's own
@@ -21,7 +21,10 @@ import { verifyRecallWebhookSignature } from "@/lib/recall/verify-webhook";
 export const maxDuration = 300;
 
 async function syncCalendarStatus(calendarId: string): Promise<void> {
-  const calendar = await retrieveCalendar(calendarId);
+  const [connection] = await db.select().from(calendarConnections)
+    .where(eq(calendarConnections.recallCalendarId, calendarId));
+  if (!connection) return;
+  const calendar = await retrieveCalendar(calendarId, connection.recallAccount);
   await db
     .update(calendarConnections)
     .set({ status: calendar.status })
@@ -39,7 +42,7 @@ async function autoScheduleChangedEvents(
 
   if (!connection || !connection.autoRecord) return;
 
-  const result = await listCalendarEvents(calendarId, { updatedAtGte });
+  const result = await listCalendarEvents(calendarId, { updatedAtGte }, connection.recallAccount);
 
   for (const event of result.results) {
     if (event.is_deleted || !event.meeting_url || event.bots?.length) {
@@ -50,6 +53,7 @@ async function autoScheduleChangedEvents(
         connection.userId,
         event.id,
         event.ical_uid,
+        { recallAccount: connection.recallAccount },
       );
     } catch (err) {
       console.error(`Failed to auto-schedule event ${event.id}`, err);
@@ -60,12 +64,41 @@ async function autoScheduleChangedEvents(
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
-  if (!verifyRecallWebhookSignature(request.headers, rawBody)) {
+  const accountId = getRecallWebhookAccount(request.headers, rawBody);
+  if (!accountId) {
     return Response.json({ error: "invalid signature" }, { status: 401 });
   }
 
-  const parsed = JSON.parse(rawBody);
+  let parsed;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return Response.json({ error: "invalid JSON" }, { status: 400 });
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return Response.json({ error: "invalid payload" }, { status: 400 });
+  }
   const eventName = typeof parsed.event === "string" ? parsed.event : "";
+
+  // A signature from one account cannot authorize a resource owned by the
+  // other. Unknown resources are acknowledged without processing.
+  const botId = parsed.data?.bot?.id;
+  const calendarId = parsed.data?.calendar_id;
+  if (typeof botId === "string") {
+    const [meeting] = await db.select({ recallAccount: meetings.recallAccount })
+      .from(meetings).where(eq(meetings.recallBotId, botId));
+    if (!meeting) return Response.json({ received: true });
+    if (meeting.recallAccount !== accountId) {
+      return Response.json({ error: "account mismatch" }, { status: 401 });
+    }
+  } else if (typeof calendarId === "string") {
+    const [connection] = await db.select({ recallAccount: calendarConnections.recallAccount })
+      .from(calendarConnections).where(eq(calendarConnections.recallCalendarId, calendarId));
+    if (!connection) return Response.json({ received: true });
+    if (connection.recallAccount !== accountId) {
+      return Response.json({ error: "account mismatch" }, { status: 401 });
+    }
+  }
 
   if (eventName.startsWith("bot.")) {
     const payload = RecallBotWebhookPayloadSchema.parse(parsed);
@@ -115,6 +148,7 @@ export async function POST(request: Request) {
         },
       ),
     );
+
   }
 
   return Response.json({ received: true });

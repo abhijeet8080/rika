@@ -3,12 +3,13 @@ import { db } from "@/lib/db/client";
 import { findActiveMeetingForUrl } from "@/lib/db/meetings";
 import { meetings } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
+import { getRecallAccount, getDefaultRecallAccountId } from "@/lib/recall/accounts";
 import { createBot } from "@/lib/recall/client";
 import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
 import { detectPlatform } from "@/lib/recall/platform";
 
 export async function POST(request: Request) {
-  const { meetingUrl, recordVideo, recordAudio } = await request.json();
+  const { meetingUrl, recordVideo, recordAudio, recallAccount } = await request.json();
 
   if (!meetingUrl || typeof meetingUrl !== "string") {
     return Response.json({ error: "meetingUrl is required" }, { status: 400 });
@@ -18,6 +19,13 @@ export async function POST(request: Request) {
   }
   if (recordAudio !== undefined && typeof recordAudio !== "boolean") {
     return Response.json({ error: "recordAudio must be a boolean" }, { status: 400 });
+  }
+
+  let accountId;
+  try {
+    accountId = getRecallAccount(recallAccount ?? getDefaultRecallAccountId()).id;
+  } catch (err) {
+    return Response.json({ error: err instanceof Error ? err.message : "Invalid Recall account" }, { status: 400 });
   }
 
   const userId = await getCurrentUserId();
@@ -44,7 +52,7 @@ export async function POST(request: Request) {
     botName: BOT_DISPLAY_NAME,
     recordVideo,
     recordAudio,
-  });
+  }, accountId);
   const latestStatus = bot.status_changes.at(-1)?.code ?? "joining";
 
   const [meeting] = await db
@@ -52,6 +60,7 @@ export async function POST(request: Request) {
     .values({
       userId,
       recallBotId: bot.id,
+      recallAccount: accountId,
       platform: detectPlatform(meetingUrl),
       meetingUrl,
       status: latestStatus,

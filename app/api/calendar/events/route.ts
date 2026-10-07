@@ -21,12 +21,13 @@ export async function GET() {
     connections.map(async (connection) => {
       const result = await listCalendarEvents(connection.recallCalendarId, {
         startTimeGte: new Date().toISOString(),
-      });
+      }, connection.recallAccount);
       // Deliberately not spreading the raw event — it carries the full
       // provider payload (attendee emails, etc.) that the client has no
       // need to see.
       return result.results.map((event) => ({
         id: event.id,
+        calendarConnectionId: connection.id,
         ical_uid: event.ical_uid,
         start_time: event.start_time,
         end_time: event.end_time,

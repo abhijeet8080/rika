@@ -50,6 +50,13 @@
       "when": 1785921971087,
       "tag": "0006_nappy_terror",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791376524601,
+      "tag": "0008_recall_accounts",
+      "breakpoints": true
     }
   ]
 }

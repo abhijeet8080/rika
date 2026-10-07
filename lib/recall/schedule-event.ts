@@ -14,17 +14,18 @@ export async function scheduleBotForCalendarEvent(
   eventId: string,
   icalUid: string,
   options: {
+    recallAccount?: string;
     categoryId?: string | null;
     recordVideo?: boolean;
     recordAudio?: boolean;
   } = {},
 ) {
-  const { categoryId, recordVideo, recordAudio } = options;
+  const { categoryId, recordVideo, recordAudio, recallAccount = "primary" } = options;
 
   const event = await scheduleCalendarBot(eventId, {
     deduplicationKey: icalUid,
     botConfig: { botName: BOT_DISPLAY_NAME, recordVideo, recordAudio },
-  });
+  }, recallAccount);
 
   // Recall returns scheduled bots as a `bots` array (confirmed live) —
   // take the most recently scheduled one.
@@ -42,6 +43,7 @@ export async function scheduleBotForCalendarEvent(
     .values({
       userId,
       recallBotId: botId,
+      recallAccount,
       title,
       categoryId: categoryId ?? null,
       platform: meetingUrl ? detectPlatform(meetingUrl) : null,

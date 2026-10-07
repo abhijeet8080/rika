@@ -8,6 +8,7 @@ export async function upsertCalendarConnection(
   recallCalendarId: string,
   status: string,
   email?: string,
+  recallAccount = "primary",
 ): Promise<void> {
   // Without an email we can't tell "reconnecting the same account" apart
   // from "connecting a different one" — always insert rather than risk
@@ -22,6 +23,7 @@ export async function upsertCalendarConnection(
               eq(calendarConnections.userId, userId),
               eq(calendarConnections.provider, provider),
               eq(calendarConnections.email, email),
+              eq(calendarConnections.recallAccount, recallAccount),
             ),
           )
       )[0]
@@ -35,6 +37,6 @@ export async function upsertCalendarConnection(
   } else {
     await db
       .insert(calendarConnections)
-      .values({ userId, provider, recallCalendarId, status, email });
+      .values({ userId, provider, recallCalendarId, status, email, recallAccount });
   }
 }

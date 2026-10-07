@@ -49,14 +49,14 @@ export async function PATCH(
   if (autoRecord) {
     const result = await listCalendarEvents(connection.recallCalendarId, {
       startTimeGte: new Date().toISOString(),
-    });
+    }, connection.recallAccount);
 
     for (const event of result.results) {
       if (event.is_deleted || !event.meeting_url || event.bots?.length) {
         continue;
       }
       try {
-        await scheduleBotForCalendarEvent(userId, event.id, event.ical_uid);
+        await scheduleBotForCalendarEvent(userId, event.id, event.ical_uid, { recallAccount: connection.recallAccount });
         scheduled++;
       } catch (err) {
         console.error(`Failed to auto-schedule event ${event.id}`, err);

@@ -1,3 +1,4 @@
+import { getRecallAccount, getDefaultRecallAccountId } from "./accounts";
 import { env } from "@/lib/env";
 import type {
   CreateBotParams,
@@ -87,19 +88,20 @@ function getAutomaticLeaveConfig() {
   };
 }
 
-function apiUrl(version: "v1" | "v2", path: string) {
-  return `https://${env.RECALL_API_REGION}.recall.ai/api/${version}${path}`;
+function apiUrl(version: "v1" | "v2", path: string, accountId: string) {
+  return `https://${getRecallAccount(accountId).region}.recall.ai/api/${version}${path}`;
 }
 
 async function recallFetch<T>(
   version: "v1" | "v2",
   path: string,
   init?: RequestInit,
+  accountId = "primary",
 ): Promise<T> {
-  const res = await fetch(apiUrl(version, path), {
+  const res = await fetch(apiUrl(version, path, accountId), {
     ...init,
     headers: {
-      Authorization: `Token ${env.RECALL_API_KEY}`,
+      Authorization: `Token ${getRecallAccount(accountId).apiKey}`,
       "Content-Type": "application/json",
       ...init?.headers,
     },
@@ -112,7 +114,7 @@ async function recallFetch<T>(
   return res.json() as Promise<T>;
 }
 
-export async function createBot(params: CreateBotParams): Promise<RecallBot> {
+export async function createBot(params: CreateBotParams, accountId = getDefaultRecallAccountId()): Promise<RecallBot> {
   return recallFetch<RecallBot>("v1", "/bot/", {
     method: "POST",
     body: JSON.stringify({
@@ -128,20 +130,20 @@ export async function createBot(params: CreateBotParams): Promise<RecallBot> {
         }),
       automatic_leave: getAutomaticLeaveConfig(),
     }),
-  });
+  }, accountId);
 }
 
-export async function retrieveBot(botId: string): Promise<RecallBot> {
-  return recallFetch<RecallBot>("v1", `/bot/${botId}/`);
+export async function retrieveBot(botId: string, accountId = "primary"): Promise<RecallBot> {
+  return recallFetch<RecallBot>("v1", `/bot/${botId}/`, undefined, accountId);
 }
 
 // Only works on a bot that hasn't joined a call yet (405 otherwise) — a
 // separate raw fetch from recallFetch since a successful delete returns
 // 204 with no body to parse.
-export async function cancelScheduledBot(botId: string): Promise<void> {
-  const res = await fetch(apiUrl("v1", `/bot/${botId}/`), {
+export async function cancelScheduledBot(botId: string, accountId = "primary"): Promise<void> {
+  const res = await fetch(apiUrl("v1", `/bot/${botId}/`, accountId), {
     method: "DELETE",
-    headers: { Authorization: `Token ${env.RECALL_API_KEY}` },
+    headers: { Authorization: `Token ${getRecallAccount(accountId).apiKey}` },
   });
   if (!res.ok) {
     throw new Error(
@@ -151,8 +153,8 @@ export async function cancelScheduledBot(botId: string): Promise<void> {
 }
 
 // Pulls the bot out of an already-active call — irreversible, per Recall.
-export async function removeBotFromCall(botId: string): Promise<void> {
-  await recallFetch("v1", `/bot/${botId}/leave_call/`, { method: "POST" });
+export async function removeBotFromCall(botId: string, accountId = "primary"): Promise<void> {
+  await recallFetch("v1", `/bot/${botId}/leave_call/`, { method: "POST" }, accountId);
 }
 
 // Causes the bot to post a message into the meeting's chat. Platform
@@ -161,15 +163,17 @@ export async function removeBotFromCall(botId: string): Promise<void> {
 export async function sendChatMessage(
   botId: string,
   message: string,
+  accountId = "primary",
 ): Promise<void> {
   await recallFetch("v1", `/bot/${botId}/send_chat_message/`, {
     method: "POST",
     body: JSON.stringify({ message, to: "everyone" }),
-  });
+  }, accountId);
 }
 
 export async function createCalendar(
   params: CreateCalendarParams,
+  accountId = getDefaultRecallAccountId(),
 ): Promise<RecallCalendar> {
   return recallFetch<RecallCalendar>("v2", "/calendars/", {
     method: "POST",
@@ -180,18 +184,20 @@ export async function createCalendar(
       oauth_refresh_token: params.oauthRefreshToken,
       oauth_email: params.oauthEmail,
     }),
-  });
+  }, accountId);
 }
 
 export async function retrieveCalendar(
   calendarId: string,
+  accountId = "primary",
 ): Promise<RecallCalendar> {
-  return recallFetch<RecallCalendar>("v2", `/calendars/${calendarId}/`);
+  return recallFetch<RecallCalendar>("v2", `/calendars/${calendarId}/`, undefined, accountId);
 }
 
 export async function listCalendarEvents(
   calendarId: string,
   query?: ListCalendarEventsQuery,
+  accountId = "primary",
 ): Promise<ListCalendarEventsResult> {
   const params = new URLSearchParams({ calendar_id: calendarId });
   if (query?.startTimeGte) params.set("start_time__gte", query.startTimeGte);
@@ -201,12 +207,15 @@ export async function listCalendarEvents(
   return recallFetch<ListCalendarEventsResult>(
     "v2",
     `/calendar-events/?${params.toString()}`,
+    undefined,
+    accountId,
   );
 }
 
 export async function scheduleCalendarBot(
   eventId: string,
   params: ScheduleCalendarBotParams,
+  accountId = "primary",
 ): Promise<RecallCalendarEvent> {
   const {
     meetingUrl,
@@ -238,5 +247,6 @@ export async function scheduleCalendarBot(
         },
       }),
     },
+    accountId,
   );
 }

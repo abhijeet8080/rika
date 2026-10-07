@@ -73,21 +73,21 @@ export default async function CalendarSettingsPage() {
 
               {accounts.length > 0 && (
                 <div className="mt-5 flex flex-col gap-4 border-t border-line pt-4">
-                  <AutoRecordToggle
-                    connectionIds={accounts.map((a) => a.id)}
-                    initialValue={accounts.every((a) => a.autoRecord)}
-                  />
                   <ul className="flex flex-col gap-1.5">
                     {accounts.map((account) => (
                       <li
                         key={account.id}
-                        className="flex items-center gap-2 font-mono text-[12px] text-ink-muted"
+                        className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-ink-muted"
                       >
                         <Check
                           className="h-3.5 w-3.5 shrink-0 text-moss"
                           strokeWidth={2}
                         />
                         {account.email ?? "Connected account"}
+                        <span className="rounded-full border border-line px-2 py-0.5">
+                          {account.recallAccount === "secondary" ? "Secondary Recall" : "Primary Recall"}
+                        </span>
+                        <AutoRecordToggle connectionIds={[account.id]} initialValue={account.autoRecord} />
                       </li>
                     ))}
                   </ul>

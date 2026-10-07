@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { upsertCalendarConnection } from "@/lib/db/calendar-connections";
 import { env } from "@/lib/env";
+import { getDefaultRecallAccountId } from "@/lib/recall/accounts";
 import { createCalendar } from "@/lib/recall/client";
 
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
@@ -90,13 +91,14 @@ export async function GET(request: Request) {
     // best-effort only — Recall works fine without oauth_email
   }
 
+  const recallAccount = getDefaultRecallAccountId();
   const calendar = await createCalendar({
     platform: "microsoft_outlook",
     oauthClientId: env.MICROSOFT_OAUTH_CLIENT_ID,
     oauthClientSecret: env.MICROSOFT_OAUTH_CLIENT_SECRET,
     oauthRefreshToken: tokens.refresh_token,
     oauthEmail,
-  });
+  }, recallAccount);
 
   const userId = await getCurrentUserId();
   await upsertCalendarConnection(
@@ -105,6 +107,7 @@ export async function GET(request: Request) {
     calendar.id,
     calendar.status,
     oauthEmail,
+    recallAccount,
   );
 
   return NextResponse.redirect(

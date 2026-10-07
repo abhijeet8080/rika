@@ -79,7 +79,7 @@ export async function processCompletedBot(botId: string): Promise<void> {
     return;
   }
 
-  const bot = await retrieveBot(botId);
+  const bot = await retrieveBot(botId, meeting.recallAccount);
   const recording = bot.recordings?.[0];
   if (!recording) {
     throw new Error(`Bot ${botId} completed with no recordings`);

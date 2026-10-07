@@ -1,0 +1,2 @@
+ALTER TABLE "calendar_connections" ADD COLUMN "recall_account" text DEFAULT 'primary' NOT NULL;--> statement-breakpoint
+ALTER TABLE "meetings" ADD COLUMN "recall_account" text DEFAULT 'primary' NOT NULL;

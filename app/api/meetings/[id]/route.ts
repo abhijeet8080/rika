@@ -86,10 +86,10 @@ export async function DELETE(
     // the live call instead of leaving it running unattended after the
     // meeting disappears from Rika's UI.
     try {
-      await cancelScheduledBot(meeting.recallBotId);
+      await cancelScheduledBot(meeting.recallBotId, meeting.recallAccount);
     } catch {
       try {
-        await removeBotFromCall(meeting.recallBotId);
+        await removeBotFromCall(meeting.recallBotId, meeting.recallAccount);
       } catch (err) {
         console.error(
           `Failed to stop Recall bot ${meeting.recallBotId} during delete`,

@@ -79,6 +79,7 @@ export async function handleLiveChatMessage(
     .select({
       id: meetings.id,
       userId: meetings.userId,
+      recallAccount: meetings.recallAccount,
       categoryId: meetings.categoryId,
       platform: meetings.platform,
     })
@@ -109,5 +110,5 @@ export async function handleLiveChatMessage(
     { meetingId: meeting.id, role: "assistant", text: truncated },
   ]);
 
-  await sendChatMessage(botId, truncated);
+  await sendChatMessage(botId, truncated, meeting.recallAccount);
 }

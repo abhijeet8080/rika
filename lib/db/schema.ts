@@ -43,6 +43,7 @@ export const calendarConnections = pgTable("calendar_connections", {
   // per provider (e.g. personal + work Gmail) as distinct rows, deduped
   // on (userId, provider, email) rather than just (userId, provider).
   email: text("email"),
+  recallAccount: text("recall_account").notNull().default("primary"),
   recallCalendarId: text("recall_calendar_id").notNull(),
   status: text("status").notNull(), // 'connected' | 'disconnected' | 'error'
   // When on, every meeting synced from this connection gets a bot
@@ -70,6 +71,7 @@ export const meetings = pgTable("meetings", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
+  recallAccount: text("recall_account").notNull().default("primary"),
   recallBotId: text("recall_bot_id").notNull().unique(),
   title: text("title"),
   // One category per meeting (confirmed, not multi-tag). Deleting a

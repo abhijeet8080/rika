@@ -13,11 +13,16 @@ interface JoinedMeeting {
   meetingUrl: string;
 }
 
-export function JoinMeetingForm({ compact = false }: { compact?: boolean }) {
+export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"], defaultRecallAccount = "primary" }: {
+  compact?: boolean;
+  recallAccounts?: string[];
+  defaultRecallAccount?: string;
+}) {
   const router = useRouter();
   const [meetingUrl, setMeetingUrl] = useState("");
   const [recordVideo, setRecordVideo] = useState(true);
   const [recordAudio, setRecordAudio] = useState(true);
+  const [recallAccount, setRecallAccount] = useState(defaultRecallAccount);
   const [status, setStatus] = useState<"idle" | "joining" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [existingMeetingId, setExistingMeetingId] = useState<string | null>(
@@ -35,7 +40,7 @@ export function JoinMeetingForm({ compact = false }: { compact?: boolean }) {
     const res = await fetch("/api/bots", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meetingUrl, recordVideo, recordAudio }),
+      body: JSON.stringify({ meetingUrl, recordVideo, recordAudio, recallAccount }),
     });
 
     const body = await res.json().catch(() => ({}));
@@ -57,6 +62,15 @@ export function JoinMeetingForm({ compact = false }: { compact?: boolean }) {
 
   const toggles = (
     <div className="flex flex-wrap items-center gap-1.5">
+      {recallAccounts.length > 1 && (
+        <label className="flex items-center gap-2 font-mono text-[11px] text-ink-muted">
+          Recall account
+          <select value={recallAccount} onChange={(e) => setRecallAccount(e.target.value)} disabled={status === "joining"}
+            className="rounded-full border border-line bg-white px-2.5 py-1 text-ink">
+            {recallAccounts.map((account) => <option key={account} value={account}>{account === "primary" ? "Primary" : "Secondary"}</option>)}
+          </select>
+        </label>
+      )}
       <button
         type="button"
         onClick={() => setRecordVideo((v) => !v)}

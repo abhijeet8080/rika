@@ -75,7 +75,7 @@ export default async function MeetingDetailPage({
 
   if (meeting.status === "done") {
     try {
-      const bot = await retrieveBot(meeting.recallBotId);
+      const bot = await retrieveBot(meeting.recallBotId, meeting.recallAccount);
       const shortcuts = bot.recordings?.[0]?.media_shortcuts;
       recordingVideoUrl =
         shortcuts?.video_mixed?.data?.download_url ?? recordingVideoUrl;

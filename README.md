@@ -81,6 +81,46 @@ Until this is wired, completed meetings may need manual reprocessing, and auto-r
 
 ---
 
+## Two Recall accounts
+
+Keep the original account's `RECALL_API_KEY`, `RECALL_API_REGION`, and
+`RECALL_WEBHOOK_SECRET` unchanged. Configure the additional account with:
+
+```dotenv
+RECALL_SECONDARY_API_KEY=<second account API key>
+RECALL_SECONDARY_API_REGION=<second account region>
+RECALL_SECONDARY_WEBHOOK_SECRET=<second account webhook signing secret>
+RECALL_DEFAULT_ACCOUNT=primary
+```
+
+Use `primary` or `secondary` for `RECALL_DEFAULT_ACCOUNT`. It controls new
+manual joins and newly connected calendars. The Join now form also lets you
+choose either configured account. Keys and webhook secrets remain server-side.
+There is no automatic account switching when credits or quotas are exhausted.
+
+Both Recall dashboards should deliver webhooks to
+`{APP_BASE_URL}/api/webhooks/recall`. Configure each account's own signing secret
+above. Bot requests also send live chat and transcript events to this endpoint.
+
+Run `npm run db:migrate` before starting or deploying this version. Migration
+`0008_recall_accounts` assigns existing meetings and calendar connections to
+`primary`; later resources save the account used to create them. Retrieving
+recordings, stopping bots, live replies, and calendar sync always use that saved
+account, even after the default changes. Retain the original credentials to
+keep access to older resources.
+
+Existing calendar connections stay on their original account. To use the
+secondary account for calendar bots, set the default to `secondary` and connect
+the calendar again. The connections remain separate for each Recall account;
+disable auto-record on the old connection to avoid scheduling duplicate bots.
+Changing the default does not transfer resources between Recall accounts.
+
+Set these variables in `.env.local` for local development and in your deployment
+environment for production, then restart or redeploy. Run
+`npm run test:recall` to verify routing and signatures without contacting Recall.
+
+---
+
 ## Environment variables
 
 Create `.env.local` with:

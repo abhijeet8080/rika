@@ -11,6 +11,7 @@ import { useCategories } from "@/lib/hooks/use-categories";
 
 interface CalendarEvent {
   id: string;
+  calendarConnectionId: string;
   ical_uid: string;
   start_time: string;
   end_time: string;
@@ -99,6 +100,7 @@ function CalendarEventsListContent({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           icalUid: event.ical_uid,
+          calendarConnectionId: event.calendarConnectionId,
           categoryId: selectedCategoryFor(event.id),
           recordVideo: videoPrefs[event.id] ?? true,
           recordAudio: audioPrefs[event.id] ?? true,
