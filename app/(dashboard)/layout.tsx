@@ -24,7 +24,8 @@ export default function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
-  const isMeetingWorkspace = /^\/meetings\/[^/]+$/.test(pathname);
+  const isMeetingWorkspace = /^\/meetings\/[^/]+\/?$/.test(pathname);
+  const isFocusedWorkspace = isMeetingWorkspace || /^\/chat\/?$/.test(pathname);
   const pageName =
     navItems.find((item) => pathname.startsWith(item.href))?.label ??
     "Meetings";
@@ -34,9 +35,9 @@ export default function DashboardLayout({
   return (
     <ToastProvider>
       <div
-        className={`bg-studio flex min-h-dvh flex-1 flex-col lg:grid lg:grid-cols-[224px_minmax(0,1fr)] ${isMeetingWorkspace ? "lg:h-dvh lg:overflow-hidden" : ""}`}
+        className={`bg-studio flex min-h-dvh flex-1 flex-col lg:grid lg:grid-cols-[224px_minmax(0,1fr)] ${isFocusedWorkspace ? "lg:h-dvh lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden" : ""}`}
       >
-        <aside className="sticky top-0 hidden h-dvh flex-col border-r border-line bg-[#f4f8f5] px-4 py-6 lg:flex">
+        <aside className="sticky top-0 hidden h-dvh flex-col overflow-y-auto overscroll-contain border-r border-line bg-[#f4f8f5] px-4 py-6 lg:flex">
           <Link
             href="/meetings"
             className="mb-8 flex w-fit items-center gap-2.5 px-2 text-[30px] font-semibold tracking-[-1.8px] text-ink"
@@ -153,11 +154,11 @@ export default function DashboardLayout({
             </nav>
           </header>
           <main
-            className={`flex min-h-0 flex-1 flex-col px-5 sm:px-8 xl:px-10 ${isMeetingWorkspace ? "py-5" : "py-8 sm:py-10"}`}
+            className={`flex min-h-0 flex-1 flex-col px-5 sm:px-8 xl:px-10 ${isFocusedWorkspace ? "py-5" : "py-8 sm:py-10"}`}
           >
             <div
               className={
-                isMeetingWorkspace
+                isFocusedWorkspace
                   ? "mx-auto flex min-h-0 w-full max-w-[1680px] flex-1 flex-col"
                   : "mx-auto w-full max-w-6xl"
               }

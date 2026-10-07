@@ -6,9 +6,13 @@ import { Switch } from "@/components/ui/switch";
 export function AutoRecordToggle({
   connectionIds,
   initialValue,
+  onUpdated,
+  label = "Auto-record every meeting",
 }: {
   connectionIds: string[];
   initialValue: boolean;
+  onUpdated?: (value: boolean) => void;
+  label?: string;
 }) {
   const [checked, setChecked] = useState(initialValue);
   const [pending, setPending] = useState(false);
@@ -18,37 +22,38 @@ export function AutoRecordToggle({
     setPending(true);
     setMessage(null);
 
-    const results = await Promise.all(
-      connectionIds.map((id) =>
-        fetch(`/api/calendar/connections/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ autoRecord: next }),
-        }).then(async (res) => ({
-          ok: res.ok,
-          body: res.ok ? await res.json() : null,
-        })),
-      ),
-    );
-
-    setPending(false);
-
-    if (results.some((r) => !r.ok)) {
-      setMessage("Failed to update one or more accounts.");
-      return;
-    }
-
-    setChecked(next);
-    if (next) {
-      const scheduled = results.reduce(
-        (sum, r) => sum + (r.body?.scheduled ?? 0),
-        0,
+    try {
+      const results = await Promise.all(
+        connectionIds.map((id) =>
+          fetch(`/api/calendar/connections/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ autoRecord: next }),
+          }).then(async (res) => ({
+            ok: res.ok,
+            body: res.ok ? await res.json() : null,
+          })),
+        ),
       );
-      setMessage(
-        scheduled > 0
-          ? `Scheduled ${scheduled} upcoming meeting${scheduled === 1 ? "" : "s"}.`
-          : "No upcoming meetings to schedule yet.",
-      );
+      if (results.some((result) => !result.ok)) {
+        setMessage("Couldn’t update this setting. Please try again.");
+        return;
+      }
+      setChecked(next);
+      if (next) {
+        const scheduled = results.reduce((sum, result) => sum + (result.body?.scheduled ?? 0), 0);
+        const failed = results.reduce((sum, result) => sum + (result.body?.failed ?? 0), 0);
+        setMessage(failed > 0
+          ? `Scheduled ${scheduled} meetings. ${failed} couldn’t be scheduled; try scheduling them from the agenda.`
+          : scheduled > 0 ? `Scheduled ${scheduled} upcoming meeting${scheduled === 1 ? "" : "s"}.` : "No upcoming meetings to schedule yet.");
+      } else {
+        setMessage("Automatic scheduling is off.");
+      }
+      onUpdated?.(next);
+    } catch {
+      setMessage("Couldn’t reach the server. Please try again.");
+    } finally {
+      setPending(false);
     }
   }
 
@@ -63,6 +68,7 @@ export function AutoRecordToggle({
         )}
       </div>
       <Switch
+        aria-label={label}
         checked={checked}
         onCheckedChange={handleChange}
         disabled={pending || connectionIds.length === 0}

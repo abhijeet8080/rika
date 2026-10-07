@@ -2,12 +2,15 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { ArrowUp, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowUp, AudioLines, CheckCheck, Compass, ListChecks, Sparkles, Square, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { parseMeetingCitation } from "@/lib/meeting-citations";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
+import styles from "./chat-workspace.module.css";
 
 const markdownComponents = {
   p: ({ ...props }) => <p className="mb-2 last:mb-0" {...props} />,
@@ -19,14 +22,6 @@ const markdownComponents = {
   ),
   li: ({ ...props }) => <li {...props} />,
   strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
-  a: ({ ...props }) => (
-    <a
-      className="underline underline-offset-2 hover:no-underline"
-      target="_blank"
-      rel="noopener noreferrer"
-      {...props}
-    />
-  ),
   code: ({ ...props }) => (
     <code
       className="rounded bg-ink/8 px-1 py-0.5 font-mono text-[12.5px]"
@@ -50,7 +45,9 @@ const markdownComponents = {
       {...props}
     />
   ),
-  td: ({ ...props }) => <td className="border border-line px-2 py-1" {...props} />,
+  td: ({ ...props }) => (
+    <td className="border border-line px-2 py-1" {...props} />
+  ),
 } satisfies React.ComponentProps<typeof ReactMarkdown>["components"];
 
 // The transport is only built once, on mount — if the scope needs to
@@ -61,9 +58,19 @@ export function ChatPanel({
   meetingId,
   categoryId,
   suggestions,
+  onCitation,
+  variant = "compact",
+  scopeName,
+  meetingCount = 0,
+  visible = true,
 }: {
+  variant?: "compact" | "workspace";
+  scopeName?: string;
+  meetingCount?: number;
+  visible?: boolean;
   meetingId?: string;
   categoryId?: string;
+  onCitation?: (chunkId: string) => void;
   /** Clickable prompts shown on an empty thread — clicking sends one. */
   suggestions?: string[];
 }) {
@@ -74,20 +81,24 @@ export function ChatPanel({
         body: { meetingId, categoryId },
       }),
   );
-  const { messages, sendMessage, status } = useChat({ transport });
+  const { messages, sendMessage, status, stop } = useChat({ transport });
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
 
+  const isWorkspace = variant === "workspace";
+  const noContext = isWorkspace && meetingCount === 0;
   const isBusy = status !== "ready" && status !== "error";
 
   // Keep the newest message / streaming tokens / typing dots in view.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, status]);
+    const container = messagesRef.current;
+    if (container && visible) container.scrollTop = container.scrollHeight;
+  }, [messages, status, visible]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || isBusy) return;
+    if (!input.trim() || isBusy || noContext) return;
     sendMessage({ text: input });
     setInput("");
   }
@@ -97,11 +108,32 @@ export function ChatPanel({
     : "Ask across these meetings…";
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className={isWorkspace ? styles.chat : "flex h-full min-h-0 flex-col gap-4"}>
       <div
-        className={`min-h-0 flex-1 ${messages.length === 0 ? "" : "overflow-y-auto"}`}
+        ref={messagesRef}
+        className={isWorkspace ? styles.messages : "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"}
       >
-        {messages.length === 0 ? (
+        {messages.length === 0 && isWorkspace ? (
+          <div className={styles.welcome}>
+            <span className={styles.welcomeMark}><AudioLines size={32} strokeWidth={1.5} /></span>
+            <p className={styles.eyebrow}>A LITTLE MORE CLARITY</p>
+            <h2>{noContext ? "Your meeting memory starts here." : "What would you like to know?"}</h2>
+            <p>{noContext ? `Add meetings to ${scopeName} to give Rika the context for your questions.` : "Connect the dots across your conversations. Decisions, follow-ups, and the details you need — all in one place."}</p>
+            {noContext ? <Link href="/meetings" className={styles.browse}>Browse meetings →</Link> : (
+              <div className={styles.prompts}>
+                {[
+                  { title: "Catch me up", detail: "Get the bigger picture", prompt: "Summarize the most recent call", icon: Compass },
+                  { title: "Track follow-ups", detail: "See what needs attention", prompt: "What action items are still open?", icon: ListChecks },
+                  { title: "Find decisions", detail: "Know where things stand", prompt: "What decisions have we made recently?", icon: CheckCheck },
+                ].map(({ title, detail, prompt, icon: Icon }) => (
+                  <button type="button" key={title} disabled={isBusy} onClick={() => sendMessage({ text: prompt })}>
+                    <Icon size={19} strokeWidth={1.6} /><strong>{title}</strong><span>{detail}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex h-full min-h-0 flex-col">
             <EmptyState
               icon={<Sparkles className="h-4 w-4" strokeWidth={1.75} />}
@@ -129,22 +161,22 @@ export function ChatPanel({
           </div>
         ) : (
           <>
-            <ul className="flex flex-col gap-3 pb-1">
+            <ul className={isWorkspace ? styles.messageList : "flex flex-col gap-3 pb-1"}>
               {messages.map((message) => (
                 <li
                   key={message.id}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`${isWorkspace ? styles.messageRow : ""} flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed ${
+                    className={isWorkspace ? (message.role === "user" ? styles.userMessage : styles.answer) : `max-w-[88%] px-4 py-2.5 text-[14px] leading-relaxed ${
                       message.role === "user"
                         ? "rounded-2xl rounded-br-md bg-ink text-paper whitespace-pre-wrap"
                         : "rounded-2xl rounded-bl-md border border-line bg-white/70 text-ink"
                     }`}
                   >
                     {message.role === "assistant" && (
-                      <p className="mb-1.5 font-mono text-[10px] tracking-wider text-ink-muted uppercase">
-                        Rika
+                      <p className={isWorkspace ? styles.answerLabel : "mb-1.5 font-mono text-[10px] tracking-wider text-ink-muted uppercase"}>
+                        {isWorkspace && <AudioLines size={16} />} Rika
                       </p>
                     )}
                     {message.parts.map((part, i) =>
@@ -153,7 +185,49 @@ export function ChatPanel({
                         <ReactMarkdown
                           key={i}
                           remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
+                          components={{
+                            ...markdownComponents,
+                            a: ({ href, children }) => {
+                              const citation = parseMeetingCitation(href);
+                              if (
+                                citation &&
+                                citation.meetingId === meetingId &&
+                                onCitation
+                              ) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => onCitation(citation.chunkId)}
+                                    className="inline rounded-md bg-moss/10 px-1.5 text-moss underline-offset-2 hover:underline"
+                                    aria-label={`Play cited excerpt ${String(children)}`}
+                                  >
+                                    {children}
+                                  </button>
+                                );
+                              }
+                              if (href?.startsWith("/")) {
+                                return (
+                                  <Link
+                                    href={href}
+                                    className={isWorkspace && citation ? styles.sourceLink : "text-moss underline underline-offset-2 hover:no-underline"}
+                                    aria-label={citation ? `Open meeting source ${String(children)}` : undefined}
+                                  >
+                                    {children}
+                                  </Link>
+                                );
+                              }
+                              return (
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline underline-offset-2 hover:no-underline"
+                                >
+                                  {children}
+                                </a>
+                              );
+                            },
+                          }}
                         >
                           {part.text}
                         </ReactMarkdown>
@@ -189,6 +263,27 @@ export function ChatPanel({
         </div>
       )}
 
+      {isWorkspace ? (
+        <div className={styles.composerArea}>
+          <form onSubmit={handleSubmit} className={styles.composer}>
+            <textarea value={input} rows={2} onChange={(e) => setInput(e.target.value)}
+              placeholder={noContext ? "Add meetings to this category to start…" : "Ask a question about your meetings…"}
+              aria-label="Ask a question about your meetings" disabled={noContext}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  if (!isBusy) e.currentTarget.form?.requestSubmit();
+                }
+              }} />
+            <div className={styles.composerBottom}>
+              <span><AudioLines size={13} strokeWidth={1.6} />{scopeName}</span>
+              {isBusy ? <button type="button" aria-label="Stop response" onClick={() => stop()}><Square size={14} fill="currentColor" /></button>
+                : <button type="submit" aria-label="Send" disabled={!input.trim() || noContext}><ArrowUp size={19} /></button>}
+            </div>
+          </form>
+          <p className={styles.composerHint}>Answers draw from this category’s meetings. Follow source links to check the details.</p>
+        </div>
+      ) : (
       <form
         onSubmit={handleSubmit}
         className="flex shrink-0 items-center gap-2 rounded-full border border-line bg-white/80 p-1.5 shadow-[0_1px_0_rgb(21_23_29_/_0.04)]"
@@ -198,6 +293,7 @@ export function ChatPanel({
           onChange={(e) => setInput(e.target.value)}
           disabled={isBusy}
           placeholder={placeholder}
+          aria-label={placeholder}
           className="flex-1 border-0 bg-transparent shadow-none focus:border-transparent"
         />
         <button
@@ -209,6 +305,8 @@ export function ChatPanel({
           <ArrowUp className="h-4 w-4" strokeWidth={2} />
         </button>
       </form>
+      )}
+
     </div>
   );
 }

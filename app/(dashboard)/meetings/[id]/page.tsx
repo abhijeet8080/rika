@@ -1,10 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { CategorySelect } from "@/components/category-select";
 import { MeetingWorkspace } from "@/components/meeting-workspace";
-import { StatusBadge } from "@/components/status-badge";
+import { MeetingDetailHeader } from "@/components/meeting-detail-header";
+import styles from "@/components/meeting-detail.module.css";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
@@ -19,7 +17,10 @@ import { retrieveBot } from "@/lib/recall/client";
 // must not be frozen at build time.
 export const dynamic = "force-dynamic";
 
-function formatDuration(startedAt: Date | null, endedAt: Date | null): string | null {
+function formatDuration(
+  startedAt: Date | null,
+  endedAt: Date | null,
+): string | null {
   if (!startedAt || !endedAt) return null;
   const totalMinutes = Math.max(
     0,
@@ -89,59 +90,22 @@ export default async function MeetingDetailPage({
   const duration = formatDuration(meeting.startedAt, meeting.endedAt);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-5">
-      <div className="flex shrink-0 flex-col gap-4">
-        <Link
-          href="/meetings"
-          className="inline-flex w-fit items-center gap-1.5 font-mono text-[12px] tracking-wide text-ink-muted uppercase transition-colors hover:text-ink"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
-          All meetings
-        </Link>
-
-        <div className="surface-panel flex flex-col gap-4 p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 max-w-3xl">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <StatusBadge status={meeting.status} />
-                <span className="font-mono text-[11px] tracking-wide text-ink-muted uppercase">
-                  {platformLabel(meeting.platform)}
-                  {duration ? ` · ${duration}` : ""}
-                </span>
-              </div>
-              <h1 className="font-display text-2xl font-semibold tracking-tight break-words text-ink sm:text-3xl">
-                {meeting.title ?? meeting.meetingUrl}
-              </h1>
-              <div className="mt-3">
-                <CategorySelect
-                  mode="bound"
-                  meetingId={meeting.id}
-                  initialCategoryId={meeting.categoryId}
-                  categories={userCategories}
-                />
-              </div>
-            </div>
-
-            {meetingParticipants.length > 0 && (
-              <div className="min-w-0">
-                <p className="section-label mb-2">Participants</p>
-                <ul className="flex max-w-md flex-wrap justify-start gap-1.5 sm:justify-end">
-                  {meetingParticipants.map((p) => (
-                    <li
-                      key={p.id}
-                      className="rounded-full border border-line bg-paper/80 px-2.5 py-1 text-[13px] text-ink"
-                    >
-                      {p.name ?? p.email ?? "Unknown"}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className={styles.detailPage}>
+      <MeetingDetailHeader
+        meetingId={meeting.id}
+        title={meeting.title ?? meeting.meetingUrl}
+        platform={platformLabel(meeting.platform)}
+        duration={duration}
+        date={meeting.startedAt ?? meeting.scheduledStart ?? meeting.createdAt}
+        status={meeting.status}
+        categoryId={meeting.categoryId}
+        categories={userCategories}
+        participants={meetingParticipants}
+        canExport={chunks.length > 0}
+        canGenerate={meeting.status === "done" && chunks.length > 0}
+      />
       <MeetingWorkspace
+        key={meeting.id}
         meetingId={meeting.id}
         chunks={chunks}
         videoUrl={recordingVideoUrl}

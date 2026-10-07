@@ -84,16 +84,22 @@ export function TranscriptViewer({
   onSeek,
   activeChunkId,
   className,
+  focusRequest,
+  visible = true,
 }: {
   chunks: TranscriptChunkItem[];
+  visible?: boolean;
   /** Omit to render read-only timestamps (no recording to seek). */
   onSeek?: (startMs: number) => void;
   activeChunkId?: string | null;
   className?: string;
+  focusRequest?: { id: string; sequence: number } | null;
 }) {
   const [query, setQuery] = useState("");
   const [matchCursor, setMatchCursor] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
+  const [followPlayback, setFollowPlayback] = useState(true);
 
   const trimmedQuery = query.trim();
 
@@ -111,19 +117,42 @@ export function TranscriptViewer({
   const cursor = Math.min(matchCursor, Math.max(0, matchIds.length - 1));
   const currentMatchId = matchIds.length > 0 ? matchIds[cursor] : null;
 
-  // Keep the focused search hit in view as the query/cursor changes.
+  function scrollToChunk(id: string) {
+    const container = listRef.current;
+    const element = Array.from(
+      container?.querySelectorAll<HTMLElement>("[data-chunk-id]") ?? [],
+    ).find((item) => item.dataset.chunkId === id);
+    if (!container || !element) return;
+    const top =
+      element.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop;
+    container.scrollTo({
+      top: Math.max(0, top - 12),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }
+
   useEffect(() => {
-    if (!currentMatchId) return;
-    rootRef.current
-      ?.querySelector(`[data-chunk-id="${currentMatchId}"]`)
-      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [currentMatchId]);
+    if (visible && currentMatchId) scrollToChunk(currentMatchId);
+  }, [currentMatchId, visible]);
+
+  useEffect(() => {
+    if (visible && activeChunkId && followPlayback && !trimmedQuery)
+      scrollToChunk(activeChunkId);
+  }, [activeChunkId, followPlayback, trimmedQuery, visible]);
+
+  const focusedId = focusRequest?.id;
+  const focusSequence = focusRequest?.sequence;
+  useEffect(() => {
+    if (visible && focusedId) scrollToChunk(focusedId);
+  }, [focusedId, focusSequence, visible]);
 
   function stepMatch(delta: number) {
     if (matchIds.length === 0) return;
-    setMatchCursor(
-      (cursor + delta + matchIds.length) % matchIds.length,
-    );
+    setMatchCursor((cursor + delta + matchIds.length) % matchIds.length);
   }
 
   if (chunks.length === 0) {
@@ -133,10 +162,13 @@ export function TranscriptViewer({
   return (
     <div
       ref={rootRef}
-      className={cn("max-h-[min(70vh,640px)] overflow-y-auto", className)}
+      className={cn(
+        "flex max-h-[min(70vh,640px)] min-h-0 flex-col overflow-hidden",
+        className,
+      )}
     >
       {/* Search — sticky so it stays reachable mid-transcript */}
-      <div className="sticky top-0 z-10 -mx-1 mb-2 flex items-center gap-2 bg-paper/90 px-1 pt-1 pb-2 backdrop-blur-sm">
+      <div className="z-10 mb-2 flex shrink-0 flex-wrap items-center gap-2 bg-paper/90 px-1 pt-1 pb-2 backdrop-blur-sm">
         <div className="relative min-w-0 flex-1 sm:max-w-xs">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-ink-muted"
@@ -173,6 +205,17 @@ export function TranscriptViewer({
           )}
         </div>
 
+        {onSeek && (
+          <button
+            type="button"
+            aria-pressed={followPlayback}
+            onClick={() => setFollowPlayback((value) => !value)}
+            className="shrink-0 rounded-lg border border-line bg-white px-2.5 py-2 text-[11px] text-moss"
+          >
+            {followPlayback ? "Following playback" : "Follow playback"}
+          </button>
+        )}
+
         {trimmedQuery && (
           <>
             <span className="shrink-0 font-mono text-[11px] text-ink-muted tabular-nums">
@@ -204,7 +247,12 @@ export function TranscriptViewer({
         )}
       </div>
 
-      <ol className="flex flex-col gap-1">
+      <ol
+        ref={listRef}
+        aria-label="Transcript excerpts"
+        tabIndex={0}
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain pr-2 pb-3 [scrollbar-gutter:stable]"
+      >
         {chunks.map((chunk) => {
           const isActive = chunk.id === activeChunkId;
           const isMatch = matchIdSet.has(chunk.id);
@@ -216,10 +264,10 @@ export function TranscriptViewer({
               className={cn(
                 "flex gap-3 rounded-xl px-3 py-2.5 transition-colors",
                 isActive
-                  ? "bg-white shadow-[inset_3px_0_0_0_var(--color-rec)]"
+                  ? "bg-moss/8 shadow-[inset_3px_0_0_0_var(--color-moss)]"
                   : "hover:bg-white/60",
-                trimmedQuery && !isMatch && "opacity-45",
-                isCurrentMatch && "bg-white ring-1 ring-rec/40",
+                trimmedQuery && !isMatch && !isActive && "opacity-45",
+                isCurrentMatch && "bg-white ring-1 ring-moss/40",
               )}
             >
               <SpeakerAvatar name={chunk.speaker} />
@@ -235,6 +283,7 @@ export function TranscriptViewer({
                     <button
                       type="button"
                       onClick={() => onSeek(chunk.startMs)}
+                      aria-label={`Play from ${formatTimestamp(chunk.startMs)}`}
                       className="font-mono text-[11px] tracking-wide text-ink-muted tabular-nums underline-offset-2 hover:text-ink hover:underline"
                     >
                       {formatTimestamp(chunk.startMs)}

@@ -3,10 +3,7 @@
 import { CheckSquare, Loader2, Quote, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type {
-  MeetingActionItem,
-  MeetingHighlight,
-} from "@/lib/db/schema";
+import type { MeetingActionItem, MeetingHighlight } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toaster";
 
@@ -24,6 +21,7 @@ export function MeetingNotes({
   highlights,
   onSeek,
   canGenerate,
+  hideRegenerate = false,
 }: {
   meetingId: string;
   summary: string | null;
@@ -32,6 +30,7 @@ export function MeetingNotes({
   onSeek?: (startMs: number) => void;
   /** Show generate/regenerate when the meeting is done. */
   canGenerate?: boolean;
+  hideRegenerate?: boolean;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -105,16 +104,14 @@ export function MeetingNotes({
             )}
           </Button>
         )}
-        {error && (
-          <p className="font-mono text-[12px] text-rec">{error}</p>
-        )}
+        {error && <p className="font-mono text-[12px] text-rec">{error}</p>}
       </div>
     );
   }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-1">
-      {canGenerate && (
+      {canGenerate && !hideRegenerate && (
         <div className="flex shrink-0 items-center justify-end gap-2">
           {error && (
             <p className="mr-auto font-mono text-[12px] text-rec">{error}</p>
@@ -159,7 +156,9 @@ export function MeetingNotes({
                   <p className="text-sm text-ink">{item.text}</p>
                   {(item.assignee || item.dueHint) && (
                     <p className="mt-1 font-mono text-[11px] text-ink-muted">
-                      {[item.assignee, item.dueHint].filter(Boolean).join(" · ")}
+                      {[item.assignee, item.dueHint]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   )}
                 </div>

@@ -18,11 +18,15 @@ export function AudioPlayer({
   src,
   mediaRefCallback,
   onTimeUpdate,
+  onLoadedMetadata,
+  onError,
 }: {
   src: string;
   /** Also hands the element to the caller — e.g. MeetingWorkspace's shared mediaRef, so transcript timestamp clicks can keep seeking it. */
   mediaRefCallback: (el: HTMLAudioElement | null) => void;
   onTimeUpdate?: () => void;
+  onLoadedMetadata?: () => void;
+  onError?: () => void;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -86,7 +90,11 @@ export function AudioPlayer({
         className="hidden"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => {
+          setDuration(e.currentTarget.duration);
+          onLoadedMetadata?.();
+        }}
+        onError={onError}
         onEnded={() => setPlaying(false)}
         onTimeUpdate={(e) => {
           setCurrentTime(e.currentTarget.currentTime);
@@ -156,7 +164,11 @@ export function AudioPlayer({
             {playing ? (
               <Pause className="h-4 w-4" fill="currentColor" strokeWidth={0} />
             ) : (
-              <Play className="ml-0.5 h-4 w-4" fill="currentColor" strokeWidth={0} />
+              <Play
+                className="ml-0.5 h-4 w-4"
+                fill="currentColor"
+                strokeWidth={0}
+              />
             )}
           </button>
           <button
