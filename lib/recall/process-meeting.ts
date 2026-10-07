@@ -10,7 +10,10 @@ import {
   type MeetingActionItem,
   type MeetingHighlight,
 } from "@/lib/db/schema";
-import { upsertTranscriptChunks } from "@/lib/vector/transcript-chunks";
+import {
+  deleteTranscriptChunksForMeeting,
+  upsertTranscriptChunks,
+} from "@/lib/vector/transcript-chunks";
 import { retrieveBot } from "./client";
 import { TranscriptSchema, type TranscriptEntry } from "./types";
 
@@ -79,6 +82,11 @@ export async function processCompletedBot(botId: string): Promise<void> {
     return;
   }
 
+  await db
+    .update(meetings)
+    .set({ status: "processing" })
+    .where(eq(meetings.id, meeting.id));
+
   const bot = await retrieveBot(botId, meeting.recallAccount);
   const recording = bot.recordings?.[0];
   if (!recording) {
@@ -96,6 +104,16 @@ export async function processCompletedBot(botId: string): Promise<void> {
   );
 
   const chunkDrafts = transcriptEntries.flatMap(chunkTranscriptEntry);
+
+  // A webhook can retry after a partial run (for example, Qdrant succeeded
+  // but a later Postgres or intelligence call timed out). Start every retry
+  // from a clean, meeting-scoped state so random UUIDs cannot accumulate as
+  // orphaned vectors or duplicate transcript rows.
+  await Promise.all([
+    deleteTranscriptChunksForMeeting(meeting.id),
+    db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, meeting.id)),
+    db.delete(participants).where(eq(participants.meetingId, meeting.id)),
+  ]);
 
   // Ids assigned up front so the embedding call and the Qdrant write —
   // both external calls, both liable to fail — happen *before* any

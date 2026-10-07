@@ -17,6 +17,7 @@ export async function upsertTranscriptChunks(
   if (points.length === 0) return;
 
   await qdrant.upsert(TRANSCRIPT_CHUNKS_COLLECTION, {
+    wait: true,
     points: points.map((p) => ({
       id: p.id,
       vector: p.vector,
@@ -36,6 +37,7 @@ export async function deleteTranscriptChunksForMeeting(
   meetingId: string,
 ): Promise<void> {
   await qdrant.delete(TRANSCRIPT_CHUNKS_COLLECTION, {
+    wait: true,
     filter: { must: [{ key: "meeting_id", match: { value: meetingId } }] },
   });
 }

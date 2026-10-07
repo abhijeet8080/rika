@@ -193,3 +193,22 @@ See [project.md](./project.md) for pipelines, schema, API table, and design deci
 ## License
 
 Private — all rights reserved.
+
+## Retrieval and live transcripts
+
+Finalized `transcript.data` events are embedded and stored during the call,
+so `@Rika` can search the current discussion alongside past meetings. The webhook
+returns an error if persistence fails; replaying the same utterance repairs
+partial writes without duplicate transcript rows. Partial utterances and a
+streaming dashboard UI are not included.
+
+Web chat combines vector search with Postgres full-text search, adds adjacent
+excerpts, and links citations to the highlighted transcript source. Meeting
+summaries and comparisons use meeting metadata to select their evidence.
+
+Run `npm run test:rag` for offline regression tests covering retrieval ranking,
+meeting selection, and live-transcript failures. To measure retrieval on real
+meetings, copy `evals/rag-cases.example.json`, replace its placeholder IDs with
+actual user/meeting/chunk IDs, set `RAG_EVAL_CASES_PATH` to that file, and run
+`npm run rag:eval`. This evaluation uses your configured embedding service and
+databases; the example itself is not a benchmark result.

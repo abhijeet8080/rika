@@ -33,12 +33,17 @@ function getRecordingConfig({
     transcript: {
       provider: {
         recallai_streaming: {
-          mode: "prioritize_accuracy",
+          // Finalized utterances are delivered through transcript.data as
+          // the call happens, so low latency is required for @Rika to use
+          // the current discussion rather than only completed meetings.
+          mode: "prioritize_low_latency",
           language_code: "auto",
         },
       },
     },
-    // Routes live in-meeting chat messages to the same webhook endpoint
+    // Routes live in-meeting chat and finalized transcript utterances to the
+    // same webhook endpoint. Partial utterances are deliberately omitted:
+    // they are revised repeatedly and are not reliable RAG evidence.
     // already registered with Recall (dispatch is by `event` name, see
     // app/api/webhooks/recall/route.ts) — lets someone type "@Rika ..."
     // in the meeting chat and get a category-scoped answer back.
@@ -46,7 +51,7 @@ function getRecordingConfig({
       {
         type: "webhook",
         url: `${env.APP_BASE_URL}/api/webhooks/recall`,
-        events: ["participant_events.chat_message"],
+        events: ["participant_events.chat_message", "transcript.data"],
       },
     ],
   };

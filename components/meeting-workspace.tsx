@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Download } from "lucide-react";
 import { AudioPlayer } from "@/components/audio-player";
 import { ChatPanel } from "@/components/chat-panel";
@@ -45,6 +46,14 @@ export function MeetingWorkspace({
 
   const [tab, setTab] = useState<Tab>(hasNotes ? "notes" : "transcript");
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const citationChunkId = searchParams.get("source");
+  const [dismissedCitation, setDismissedCitation] = useState<string | null>(null);
+  const citedChunkExists = Boolean(
+    citationChunkId && citationChunkId !== dismissedCitation && chunks.some((chunk) => chunk.id === citationChunkId),
+  );
+  const visibleTab: Tab = citedChunkExists ? "transcript" : tab;
+  const visibleChunkId = citedChunkExists ? citationChunkId : activeChunkId;
   const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement | null>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +73,8 @@ export function MeetingWorkspace({
     const media = mediaRef.current;
     if (!media) return;
     const currentMs = media.currentTime * 1000;
+    if (citedChunkExists) setTab("transcript");
+    setDismissedCitation(citationChunkId);
 
     let current: TranscriptChunkItem | null = null;
     for (const chunk of chunks) {
@@ -74,11 +85,11 @@ export function MeetingWorkspace({
   }
 
   useEffect(() => {
-    if (!activeChunkId) return;
+    if (!visibleChunkId) return;
     transcriptRef.current
-      ?.querySelector(`[data-chunk-id="${activeChunkId}"]`)
+      ?.querySelector(`[data-chunk-id="${visibleChunkId}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [activeChunkId]);
+  }, [visibleChunkId, visibleTab]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "notes", label: "Notes" },
@@ -135,15 +146,18 @@ export function MeetingWorkspace({
               <button
                 key={t.id}
                 type="button"
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  setDismissedCitation(citationChunkId);
+                  setTab(t.id);
+                }}
                 className={`relative rounded-t-lg px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                  tab === t.id
+                  visibleTab === t.id
                     ? "bg-paper text-ink"
                     : "text-ink-muted hover:text-ink"
                 }`}
               >
                 {t.label}
-                {tab === t.id && (
+                {visibleTab === t.id && (
                   <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-rec" />
                 )}
               </button>
@@ -187,7 +201,7 @@ export function MeetingWorkspace({
         </div>
 
         <div className="min-h-0 flex-1 bg-paper/50 p-4">
-          {tab === "notes" ? (
+          {visibleTab === "notes" ? (
             <div className="h-full min-h-0 overflow-hidden">
               <MeetingNotes
                 meetingId={meetingId}
@@ -198,12 +212,12 @@ export function MeetingWorkspace({
                 canGenerate={canGenerate}
               />
             </div>
-          ) : tab === "transcript" ? (
+          ) : visibleTab === "transcript" ? (
             <div ref={transcriptRef} className="h-full min-h-0">
               <TranscriptViewer
                 chunks={chunks}
                 onSeek={hasRecording ? handleSeek : undefined}
-                activeChunkId={activeChunkId}
+                activeChunkId={visibleChunkId}
                 className="h-full max-h-[min(50vh,420px)] border-0 bg-transparent lg:max-h-none"
               />
             </div>

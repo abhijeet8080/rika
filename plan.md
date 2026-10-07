@@ -56,13 +56,11 @@ Each item builds on Phase 1 infra (same `bot_id`, same webhook route) rather
 than replacing it. Status reflects what's actually shipped, not the original
 order below.
 
-1. **Real-time transcript ingestion** — not started. Subscribe to
-   `transcript.data` / `transcript.partial_data` webhooks during an active
-   call; stream partial transcript to a live dashboard view.
-2. **In-meeting chat Q&A agent** — not started. Detect a directed question
-   in the live transcript/chat, run RAG against transcript-so-far + past
-   meetings, respond via Recall's `output_media.chat`. Needs a "is this
-   message for the bot" heuristic to avoid answering unrelated chatter.
+1. **Real-time transcript ingestion** — ✅ finalized `transcript.data`
+   utterances are persisted and indexed during the call. Partial utterances
+   and a streaming dashboard view are not part of this release.
+2. **In-meeting chat Q&A agent** — ✅ directed `@Rika` chat messages search
+   the current and past meetings and reply via Recall's send-chat-message API.
 3. **Multi-user auth** — ✅ done. Clerk, resource-based auth (`auth.protect()`
    inside `getCurrentUserId()`, not middleware path-matching — Clerk
    deprecated `createRouteMatcher` mid-build). JIT-links a Clerk account to
@@ -78,10 +76,10 @@ order below.
 
 **Also shipped, not in the original Phase 2 list:**
 - **Multiple calendar accounts per provider** — `calendar_connections`
-  dedupes on `(userId, provider, email)`; connect flow forces Google/
+  dedupes on `(userId, provider, email, recallAccount)`; connect flow forces Google/
   Microsoft's account picker (`prompt=select_account`) so adding a second
   account doesn't silently re-auth the first.
-- **Auto-record toggle** — per-provider (not per-account) switch on
+- **Auto-record toggle** — per-connection switch on
   `/settings/calendar`; backfills currently-upcoming events immediately on
   enable, and auto-schedules future invites via the `calendar.sync_events`
   webhook once that webhook is actually registered with Recall (see
@@ -131,6 +129,52 @@ One category per meeting (confirmed with user, not multi-tag).
   returns only that meeting's chunks.
 - Needs user: create categories, assign real meetings, confirm the badge
   and the `/chat` picker both work end-to-end.
+
+---
+
+## Phase 3 — Meeting Intelligence
+
+Auto-generate structured notes after `bot.done`: summary, action items,
+highlights. Shown on meeting detail (Notes tab) and list (preview + counts).
+
+1. **Schema** — `meetings.summary` (text), `action_items` / `highlights`
+   (jsonb). Migration `0006`.
+2. **Generator** — `lib/ai/meeting-intelligence.ts` via DeepSeek structured
+   output; best-effort in `processCompletedBot` (failure still marks done).
+3. **Regenerate API** — `POST /api/meetings/[id]/intelligence` for past
+   meetings that predate this feature or need a refresh.
+4. **UI** — Notes tab on meeting workspace (default when notes exist);
+   summary snippet + action count on list rows; highlight click seeks media.
+
+**Verification:** complete a meeting (or hit Generate on an existing done
+meeting with chunks) → Notes tab shows summary/actions/highlights; list
+row shows the summary preview.
+
+---
+
+## Phase 3.5 — Product UI polish
+
+Recording-studio product shell redesign (same brand tokens):
+
+- Dashboard nav with icons + active ink chip; pulsing rec-dot brand
+- Studio paper atmosphere (`bg-studio`) + shared `surface-panel` / `section-label`
+- Meetings: full-width Join dispatch panel; timeline-rail list rows
+- Meeting detail: header panel + tabbed workspace chrome
+- Chat / Calendar: scoped panels, stronger empty states and hierarchy
+
+---
+
+## Phase 3.6 — Chat console + UX polish
+
+- `/chat` rebuilt as a sidebar console: category rail (meeting counts, inline
+  create/delete, mobile horizontal strip) + scoped chat column with header
+  context, suggested prompts, docked composer, auto-scroll, error state.
+- **Uncategorized scope removed from web chat** — `/api/chat` now requires
+  `meetingId` or `categoryId`. `uncategorizedOnly` survives only as the
+  live in-meeting @Rika fallback (`lib/recall/live-chat.ts`).
+- Product UX polish: audio seek bar (`.seek-slider`), route `loading.tsx`
+  skeletons, toast system (`components/ui/toaster.tsx`), transcript search,
+  meetings list platform/category filters.
 
 ---
 

@@ -94,6 +94,7 @@ export async function handleLiveChatMessage(
     question,
     {
       userId: meeting.userId,
+      includeMeetingId: meeting.id,
       ...(meeting.categoryId
         ? { categoryId: meeting.categoryId }
         : { uncategorizedOnly: true }),

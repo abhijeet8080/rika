@@ -1,0 +1,204 @@
+Building in Public: Rika
+
+You are documenting your journey building Rika, a solo-built AI meeting assistant.
+
+Rika currently:
+
+Joins Zoom, Google Meet, and Microsoft Teams, with Webex host detection/integration work in the project.
+Records audio/video.
+Captures speaker-attributed transcripts.
+Lets users ask questions about meetings using RAG.
+Supports live @Rika questions inside meeting chat.
+Has Google Calendar integration and calendar-based recording.
+Uses Recall.ai for meeting infrastructure.
+Uses Next.js, React, TypeScript, Neon/Postgres, Drizzle, Qdrant, Gemini embeddings, DeepSeek, and Vercel AI SDK.
+Overall writing style
+
+You want posts to:
+
+Feel authentic and conversational.
+Sound like a developer building real software.
+Tell a story rather than simply list features.
+Be technical without becoming unnecessarily complicated.
+Show struggles and decisions honestly.
+Never exaggerate.
+Never invent details.
+Avoid generic marketing language.
+Avoid em dashes.
+You solo build the project, so use I, never we.
+Posts we've developed
+Post 1: Introducing Rika
+
+Core message:
+
+You are already building products in public, so this isn't your first build-in-public project.
+
+Rika is an AI meeting assistant.
+
+You acknowledge that products like Fireflies, Read.ai, Otter.ai already exist.
+
+The reason for building Rika isn't to pretend the idea is new. It's to understand what actually goes into building a production-ready AI product like this and experiment with ideas/features that could improve the experience.
+
+The post introduces the upcoming journey around:
+
+Architecture
+Technical decisions
+Challenges
+Mistakes
+Lessons learned
+Post 2: Why Recall.ai
+
+The key problem:
+
+how can I allow my meeting bot to join all major meeting platforms like Zoom, Google Meet, Microsoft Teams, and Webex?
+
+Building each integration independently would mean dealing with:
+
+Different APIs
+Authentication
+Platform-specific edge cases
+Ongoing maintenance
+
+That could essentially become an entire product by itself.
+
+You chose @recallai because it provides a unified API and functionality such as:
+
+Meeting bots
+Audio/video recordings
+Transcripts
+Calendar integrations
+Webhooks
+Meeting metadata
+
+You also included pricing:
+
+5 free hours, then $0.50 per recording hour, billed by meeting duration rather than participants.
+
+The main takeaway:
+
+Using Recall lets me focus on what actually makes Rika unique, instead of rebuilding infrastructure that already exists.
+
+Post 3: Why RAG instead of just summaries
+
+The core argument:
+
+Meeting summaries are useful until you need a specific answer.
+
+Example questions:
+
+"what did Rahul say about the deployment timeline?"
+"why did we decide to postpone the release?"
+
+A summary only preserves highlights.
+
+Rika instead uses RAG so that:
+
+Meeting transcripts are processed.
+Transcripts are chunked.
+Chunks are embedded.
+Embeddings are stored.
+Relevant pieces are retrieved when a question is asked.
+The answer is generated from those retrieved transcript sections.
+
+Core takeaway:
+
+Summaries tell you what happened.
+RAG lets you have a conversation with your meeting history.
+
+We originally planned to follow this with a RAG architecture post, but you decided not to publish that yet because the current RAG architecture still needs improvements.
+
+Post 4: Google Calendar integration
+
+You wanted to acknowledge that you were originally going to post the RAG architecture, but realised it wasn't final yet.
+
+Instead, you wanted to talk about an essential feature for any meeting assistant:
+
+Calendar integration.
+
+The problem:
+
+You shouldn't have to manually:
+
+Copy a meeting link
+Paste it into the assistant
+Invite the bot
+
+For Rika, you currently added Google Calendar support.
+
+Users can:
+
+Connect multiple Google Calendar accounts.
+See upcoming meetings.
+Have the bot join meetings automatically without manually inviting it.
+
+You also plan to add Outlook Calendar support, but noted that Microsoft integration is a different kind of headache.
+
+Post 5: Chunking meeting transcripts
+
+This is the latest post we worked on.
+
+The problem:
+
+How do you split a meeting transcript before sending it for embeddings?
+
+A whole meeting transcript is too large and isn't useful as one embedding.
+
+You also don't want to blindly split every N characters/tokens because that could break a speaker's thought in the middle.
+
+Current Rika approach:
+
+Chunk based on speaker turns.
+Cap each chunk at around 150 words.
+Preserve speaker information.
+Preserve timestamps.
+
+The resulting pipeline is:
+
+Meeting → Transcript → Chunking → Embeddings → Qdrant → Retrieval → Answer
+
+The next natural post is about embeddings, because after creating meaningful chunks, those chunks need to be converted into vectors and stored for semantic retrieval.
+
+Planned content sequence
+
+We discussed these possible topics:
+
+Why I chose Recall.ai
+Why RAG instead of summaries
+Google Calendar integration
+How I chunk meeting transcripts
+Finally got embeddings working
+Choosing the tech stack
+RAG architecture
+Retrieval improvements / RAG iteration
+
+But the sequence should remain flexible based on what you're actually building.
+
+Important decision
+
+Do not publish the RAG architecture yet.
+
+The current architecture isn't final, so it's better to wait until you've improved it.
+
+That actually gives us a potentially stronger future post:
+
+"The first version of Rika's RAG pipeline worked. But I wasn't happy with it."
+
+Then we can show:
+
+V1 → problems → improvements → V2
+
+That is much more aligned with genuine building in public.
+
+Current position
+
+The latest post was about transcript chunking.
+
+The logical next post is:
+
+"Finally got embeddings working"
+
+It can build directly on the chunking post:
+
+Transcript → meaningful chunks → embeddings → vector database → semantic retrieval
+
+And we should keep it concise, technical, human, and consistent with the previous posts.

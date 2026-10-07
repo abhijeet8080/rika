@@ -4,18 +4,20 @@ import { db } from "@/lib/db/client";
 import { calendarConnections, meetings } from "@/lib/db/schema";
 import { listCalendarEvents, retrieveCalendar } from "@/lib/recall/client";
 import { handleLiveChatMessage } from "@/lib/recall/live-chat";
+import { processLiveTranscript } from "@/lib/recall/live-transcript";
 import { markBotFatal, processCompletedBot } from "@/lib/recall/process-meeting";
 import { scheduleBotForCalendarEvent } from "@/lib/recall/schedule-event";
 import {
   RecallBotWebhookPayloadSchema,
   RecallCalendarWebhookPayloadSchema,
   RecallChatMessageWebhookPayloadSchema,
+  RecallRealtimeTranscriptWebhookPayloadSchema,
 } from "@/lib/recall/types";
 import { getRecallWebhookAccount } from "@/lib/recall/verify-webhook";
 
-// The response itself acks in well under a second (all real work happens
-// in after()), but after() still runs within this function's own
-// duration budget — processCompletedBot's throttled embedding batches
+// Lifecycle and calendar work runs in after(); finalized transcript events
+// persist before acknowledgment so failures can be redelivered. after()
+// still runs within this function's own duration budget — processCompletedBot's throttled embedding batches
 // (see lib/ai/embeddings.ts) can take a few minutes on a long meeting,
 // so this needs real headroom rather than an implicit/short default.
 export const maxDuration = 300;
@@ -148,7 +150,16 @@ export async function POST(request: Request) {
         },
       ),
     );
-
+  } else if (eventName === "transcript.data") {
+    const payload = RecallRealtimeTranscriptWebhookPayloadSchema.parse(parsed);
+    // A finalized utterance is small enough to process before acknowledging.
+    // Return failure when persistence fails so redelivery can repair it.
+    try {
+      await processLiveTranscript(payload);
+    } catch (err) {
+      console.error("Failed to process live transcript", err);
+      return Response.json({ error: "transcript processing failed" }, { status: 503 });
+    }
   }
 
   return Response.json({ received: true });

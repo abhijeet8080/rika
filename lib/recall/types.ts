@@ -209,3 +209,31 @@ export const RecallChatMessageWebhookPayloadSchema = z.object({
 export type RecallChatMessageWebhookPayload = z.infer<
   typeof RecallChatMessageWebhookPayloadSchema
 >;
+
+// Finalized, low-latency transcript utterances delivered through a bot's
+// recording_config.realtime_endpoints. The artifact ids identify the whole
+// recording, so deduplication happens from the stable word content/timing in
+// live-transcript.ts rather than an event id supplied by Recall.
+const RealtimeTranscriptWordSchema = z.object({
+  text: z.string(),
+  start_timestamp: z.object({ relative: z.number() }),
+  end_timestamp: z.object({ relative: z.number() }).nullable(),
+});
+
+export const RecallRealtimeTranscriptWebhookPayloadSchema = z.object({
+  event: z.literal("transcript.data"),
+  data: z.object({
+    bot: z.object({ id: z.string() }),
+    data: z.object({
+      words: z.array(RealtimeTranscriptWordSchema).min(1),
+      participant: z.object({
+        id: z.number(),
+        name: z.string().nullable(),
+        email: z.string().nullable().optional(),
+      }),
+    }),
+  }),
+});
+export type RecallRealtimeTranscriptWebhookPayload = z.infer<
+  typeof RecallRealtimeTranscriptWebhookPayloadSchema
+>;
