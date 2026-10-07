@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AudioLines } from "lucide-react";
 
 /** Shared chrome for standalone legal pages (Terms, Privacy) — no dashboard
  * nav, no marketing sections, just brand header + prose content. */
@@ -16,9 +17,11 @@ export function LegalPage({
       <header className="border-b border-line/80">
         <div className="mx-auto flex h-14 max-w-3xl items-center gap-2.5 px-5">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="rec-pulse h-2.5 w-2.5 rounded-full bg-rec" />
-            <span className="font-brand text-2xl font-medium tracking-wide text-ink">
-              Rika
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
+              <AudioLines size={17} />
+            </span>
+            <span className="font-brand text-2xl font-semibold tracking-[-1px] text-ink">
+              rika.
             </span>
           </Link>
         </div>
@@ -41,7 +44,7 @@ export function LegalPage({
           [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:text-ink-muted
           [&_li]:pl-1
           [&_strong]:font-semibold [&_strong]:text-ink
-          [&_a]:text-ink [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-rec
+          [&_a]:text-ink [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-moss
           [&_table]:mb-4 [&_table]:w-full [&_table]:border-collapse [&_table]:text-[14px]
           [&_th]:border-b [&_th]:border-line [&_th]:py-2 [&_th]:pr-4 [&_th]:text-left [&_th]:font-semibold [&_th]:text-ink
           [&_td]:border-b [&_td]:border-line/60 [&_td]:py-2 [&_td]:pr-4 [&_td]:align-top [&_td]:text-ink-muted"

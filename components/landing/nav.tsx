@@ -1,43 +1,61 @@
+"use client";
 import Link from "next/link";
+import { useState } from "react";
+import { ArrowUpRight, AudioLines, Menu, X } from "lucide-react";
+import styles from "./landing.module.css";
 
 export function LandingNav() {
+  const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-50 border-b border-[#DDD6C7]/80 bg-[#F1EEE4]/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#FF3B2F]" />
-          <span className="font-brand text-4xl font-normal tracking-wide text-[#15171D]">
-            Rika
+    <header className={styles.navWrap}>
+      <div className={styles.nav}>
+        <Link href="/" className={styles.brand} aria-label="Rika home">
+          <span className={styles.brandIcon}>
+            <AudioLines size={21} strokeWidth={1.8} />
           </span>
+          rika<span className={styles.brandDot}>.</span>
         </Link>
-
-        <nav className="hidden items-center gap-8 font-mono text-[13px] text-[#5B5D66] sm:flex">
-          <Link href="#how-it-works" className="transition-colors hover:text-[#15171D]">
-            how it works
-          </Link>
-          <Link href="#features" className="transition-colors hover:text-[#15171D]">
-            features
-          </Link>
-          <Link href="#ask" className="transition-colors hover:text-[#15171D]">
-            ask rika
-          </Link>
+        <nav className={styles.desktopLinks} aria-label="Main navigation">
+          <a href="#features">Why Rika</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#ask">Ask Rika</a>
         </nav>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/sign-in"
-            className="hidden font-mono text-[13px] text-[#5B5D66] transition-colors hover:text-[#15171D] sm:block"
-          >
-            sign in
+        <div className={styles.navActions}>
+          <Link href="/sign-in" className={styles.signIn}>
+            Sign in
           </Link>
-          <Link
-            href="/sign-up"
-            className="rounded-full bg-[#15171D] px-4 py-2 text-sm font-medium text-[#F1EEE4] transition-colors hover:bg-[#2A2D38]"
-          >
-            Get started
+          <Link href="/sign-up" className={styles.navCta}>
+            Get started <ArrowUpRight size={15} />
           </Link>
+          <button
+            className={styles.menuToggle}
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-expanded={open}
+            aria-controls="mobile-navigation"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
       </div>
+      {open && (
+        <nav
+          id="mobile-navigation"
+          className={styles.mobileLinks}
+          aria-label="Mobile navigation"
+        >
+          <a href="#features" onClick={() => setOpen(false)}>
+            Why Rika
+          </a>
+          <a href="#how-it-works" onClick={() => setOpen(false)}>
+            How it works
+          </a>
+          <a href="#ask" onClick={() => setOpen(false)}>
+            Ask Rika
+          </a>
+          <Link href="/sign-in">Sign in</Link>
+        </nav>
+      )}
     </header>
   );
 }

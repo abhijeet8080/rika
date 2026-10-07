@@ -1,8 +1,9 @@
 import { desc, eq } from "drizzle-orm";
-import { JoinMeetingForm } from "@/components/join-meeting-form";
-import { getDefaultRecallAccountId, getRecallAccountChoices } from "@/lib/recall/accounts";
-import { MeetingsBrowser } from "@/components/meetings-browser";
-import { PageHeader } from "@/components/ui/page-header";
+import { MeetingsWorkspace } from "@/components/meetings-workspace";
+import {
+  getDefaultRecallAccountId,
+  getRecallAccountChoices,
+} from "@/lib/recall/accounts";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { categories, meetings } from "@/lib/db/schema";
@@ -43,30 +44,12 @@ export default async function MeetingsPage() {
     actionItemCount: actionItems?.length ?? 0,
   }));
 
-  const activeCount = listMeetings.filter(
-    (m) => m.status !== "done" && !m.status.startsWith("fatal"),
-  ).length;
-  const capturedCount = listMeetings.filter((m) => m.status === "done").length;
-
   return (
-    <div className="flex flex-col gap-8 sm:gap-10">
-      <PageHeader
-        eyebrow="Studio"
-        title="Meetings"
-        description={
-          <span className="font-mono text-[13px] tracking-wide">
-            {listMeetings.length} total
-            <span className="mx-2 text-line">·</span>
-            {activeCount} active
-            <span className="mx-2 text-line">·</span>
-            {capturedCount} captured
-          </span>
-        }
-      />
-
-      <JoinMeetingForm recallAccounts={getRecallAccountChoices()} defaultRecallAccount={getDefaultRecallAccountId()} />
-
-      <MeetingsBrowser meetings={listMeetings} categories={userCategories} />
-    </div>
+    <MeetingsWorkspace
+      meetings={listMeetings}
+      categories={userCategories}
+      recallAccounts={getRecallAccountChoices()}
+      defaultRecallAccount={getDefaultRecallAccountId()}
+    />
   );
 }

@@ -158,7 +158,7 @@ export function MeetingWorkspace({
               >
                 {t.label}
                 {visibleTab === t.id && (
-                  <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-rec" />
+                  <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-moss" />
                 )}
               </button>
             ))}

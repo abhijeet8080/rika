@@ -68,7 +68,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
     parts.push(
       <mark
         key={key++}
-        className="rounded-[3px] bg-rec/15 px-0.5 text-inherit"
+        className="rounded-[3px] bg-moss/15 px-0.5 text-inherit"
       >
         {text.slice(found, found + needle.length)}
       </mark>,

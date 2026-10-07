@@ -1,9 +1,19 @@
 "use client";
 
-import { ArrowRight, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import {
+  ArrowRight,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  Link2,
+  Settings2,
+  ChevronDown,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "./meetings.module.css";
 import { Input } from "@/components/ui/input";
 
 interface JoinedMeeting {
@@ -13,8 +23,14 @@ interface JoinedMeeting {
   meetingUrl: string;
 }
 
-export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"], defaultRecallAccount = "primary" }: {
+export function JoinMeetingForm({
+  compact = false,
+  workspace = false,
+  recallAccounts = ["primary"],
+  defaultRecallAccount = "primary",
+}: {
   compact?: boolean;
+  workspace?: boolean;
   recallAccounts?: string[];
   defaultRecallAccount?: string;
 }) {
@@ -37,27 +53,37 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
     setExistingMeetingId(null);
     setJoined(null);
 
-    const res = await fetch("/api/bots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ meetingUrl, recordVideo, recordAudio, recallAccount }),
-    });
+    try {
+      const res = await fetch("/api/bots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meetingUrl,
+          recordVideo,
+          recordAudio,
+          recallAccount,
+        }),
+      });
 
-    const body = await res.json().catch(() => ({}));
+      const body = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
-      setError(body.error ?? `Request failed (${res.status})`);
-      if (res.status === 409 && body.meetingId) {
-        setExistingMeetingId(body.meetingId);
+      if (!res.ok) {
+        setError(body.error ?? `Request failed (${res.status})`);
+        if (res.status === 409 && body.meetingId) {
+          setExistingMeetingId(body.meetingId);
+        }
+        setStatus("error");
+        return;
       }
-      setStatus("error");
-      return;
-    }
 
-    setJoined(body.meeting);
-    setStatus("idle");
-    setMeetingUrl("");
-    router.refresh();
+      setJoined(body.meeting);
+      setStatus("idle");
+      setMeetingUrl("");
+      router.refresh();
+    } catch {
+      setError("Couldn't connect. Check your connection and try again.");
+      setStatus("error");
+    }
   }
 
   const toggles = (
@@ -65,9 +91,17 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
       {recallAccounts.length > 1 && (
         <label className="flex items-center gap-2 font-mono text-[11px] text-ink-muted">
           Recall account
-          <select value={recallAccount} onChange={(e) => setRecallAccount(e.target.value)} disabled={status === "joining"}
-            className="rounded-full border border-line bg-white px-2.5 py-1 text-ink">
-            {recallAccounts.map((account) => <option key={account} value={account}>{account === "primary" ? "Primary" : "Secondary"}</option>)}
+          <select
+            value={recallAccount}
+            onChange={(e) => setRecallAccount(e.target.value)}
+            disabled={status === "joining"}
+            className="rounded-full border border-line bg-white px-2.5 py-1 text-ink"
+          >
+            {recallAccounts.map((account) => (
+              <option key={account} value={account}>
+                {account === "primary" ? "Primary" : "Secondary"}
+              </option>
+            ))}
           </select>
         </label>
       )}
@@ -76,7 +110,7 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
         onClick={() => setRecordVideo((v) => !v)}
         disabled={status === "joining"}
         aria-pressed={recordVideo}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wide uppercase transition-colors disabled:opacity-50 ${
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors disabled:opacity-50 ${
           recordVideo
             ? "border-ink/25 bg-ink/5 text-ink"
             : "border-line text-ink-muted"
@@ -94,7 +128,7 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
         onClick={() => setRecordAudio((v) => !v)}
         disabled={status === "joining"}
         aria-pressed={recordAudio}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] tracking-wide uppercase transition-colors disabled:opacity-50 ${
+        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors disabled:opacity-50 ${
           recordAudio
             ? "border-ink/25 bg-ink/5 text-ink"
             : "border-line text-ink-muted"
@@ -142,6 +176,49 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
     </>
   );
 
+  if (workspace) {
+    return (
+      <div className={styles.captureForm}>
+        <form onSubmit={handleSubmit} className={styles.captureInputRow}>
+          <label className={styles.urlField}>
+            <Link2 size={17} aria-hidden="true" />
+            <input
+              id="meeting-url"
+              type="url"
+              required
+              value={meetingUrl}
+              onChange={(e) => setMeetingUrl(e.target.value)}
+              placeholder="Paste a Zoom, Google Meet, or Teams link"
+              aria-label="Meeting URL"
+              disabled={status === "joining"}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={status === "joining"}
+            className={styles.primaryButton}
+          >
+            {status === "joining" ? "Joining…" : "Join meeting"}
+            <ArrowRight size={15} />
+          </button>
+        </form>
+        <div className={styles.captureMeta}>
+          <span>Zoom · Google Meet · Microsoft Teams</span>
+          <details className={styles.options}>
+            <summary>
+              <Settings2 size={16} /> Recording options
+              <ChevronDown size={15} className={styles.optionsChevron} />
+            </summary>
+            <div>{toggles}</div>
+          </details>
+        </div>
+        <div role="status" aria-live="polite">
+          {feedback}
+        </div>
+      </div>
+    );
+  }
+
   if (compact) {
     return (
       <div className="flex w-full flex-col gap-2 sm:w-auto">
@@ -153,6 +230,7 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
             onChange={(e) => setMeetingUrl(e.target.value)}
             placeholder="Paste a Zoom, Meet, or Teams link..."
             disabled={status === "joining"}
+            aria-label="Meeting URL"
             className="w-full sm:w-72"
           />
           <button
@@ -174,21 +252,21 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
 
   return (
     <div className="surface-panel relative overflow-hidden p-5 sm:p-6">
-      <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-rec/10 blur-3xl" />
+      <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-moss/10 blur-3xl" />
       <div className="relative flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="section-label">Dispatch</p>
+            <p className="section-label">Quick capture</p>
             <p className="mt-1.5 font-display text-xl font-semibold tracking-tight text-ink">
-              Send Rika into a call
+              Bring Rika to your next meeting
             </p>
             <p className="mt-1 max-w-md text-sm text-ink-muted">
               Paste a meeting link — she joins, records, and captures the
               transcript.
             </p>
           </div>
-          <span className="hidden items-center gap-2 rounded-full border border-rec/20 bg-rec/8 px-3 py-1.5 font-mono text-[11px] tracking-wider text-rec uppercase sm:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-rec" />
+          <span className="hidden items-center gap-2 rounded-full border border-moss/15 bg-moss/5 px-3 py-1.5 text-[11px] text-moss sm:inline-flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-moss" />
             Ready
           </span>
         </div>
@@ -204,12 +282,13 @@ export function JoinMeetingForm({ compact = false, recallAccounts = ["primary"],
             onChange={(e) => setMeetingUrl(e.target.value)}
             placeholder="https://meet.google.com/… or Zoom / Teams link"
             disabled={status === "joining"}
-            className="w-full flex-1 bg-white/70"
+            aria-label="Meeting URL"
+            className="w-full flex-1 bg-paper/70"
           />
           <button
             type="submit"
             disabled={status === "joining"}
-            className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-rec px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-rec-dark disabled:opacity-50"
+            className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {status === "joining" ? "Joining…" : "Join now"}
             {status !== "joining" && (

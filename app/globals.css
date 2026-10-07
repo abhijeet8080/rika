@@ -7,22 +7,21 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
   --font-heading: var(--font-sans);
-  --font-display: "Space Grotesk", "Space Grotesk Fallback", ui-sans-serif, sans-serif;
+  --font-display: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 
-  /* Brand tokens — the "recording studio" identity shared by the marketing
-     site and the app shell. */
-  --color-paper: #f1eee4;
-  --color-paper-soft: #ebe7da;
-  --color-card: #f8f6ef;
-  --color-ink: #15171d;
-  --color-ink-muted: #5b5d66;
+  /* Calm workspace palette, shared with the marketing identity. */
+  --color-paper: #f7faf8;
+  --color-paper-soft: #edf3ef;
+  --color-card: #ffffff;
+  --color-ink: #173d38;
+  --color-ink-muted: #63766e;
   --color-rec: #ff3b2f;
   --color-rec-dark: #e6291d;
-  --color-moss: #1f6f54;
-  --color-line: #ddd6c7;
+  --color-moss: #347b61;
+  --color-line: #e1e9e4;
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -67,24 +66,24 @@
      generic shadcn primitives (Button, Switch, Popover, …) render
      in-brand without per-component color overrides. Kept as literal
      hex — matches --color-* exactly, see @theme inline above. */
-  --background: #f1eee4;
-  --foreground: #15171d;
-  --card: #f8f6ef;
-  --card-foreground: #15171d;
-  --popover: #f8f6ef;
-  --popover-foreground: #15171d;
-  --primary: #15171d;
-  --primary-foreground: #f1eee4;
-  --secondary: #ebe7da;
-  --secondary-foreground: #15171d;
-  --muted: #ebe7da;
-  --muted-foreground: #5b5d66;
-  --accent: #ebe7da;
-  --accent-foreground: #15171d;
+  --background: #f7faf8;
+  --foreground: #173d38;
+  --card: #ffffff;
+  --card-foreground: #173d38;
+  --popover: #ffffff;
+  --popover-foreground: #173d38;
+  --primary: #124e49;
+  --primary-foreground: #ffffff;
+  --secondary: #edf3ef;
+  --secondary-foreground: #173d38;
+  --muted: #edf3ef;
+  --muted-foreground: #63766e;
+  --accent: #edf3ef;
+  --accent-foreground: #173d38;
   --destructive: #ff3b2f;
-  --border: #ddd6c7;
-  --input: #ddd6c7;
-  --ring: #15171d;
+  --border: #e1e9e4;
+  --input: #e1e9e4;
+  --ring: #173d38;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -148,28 +147,30 @@
 }
 
 @layer utilities {
-  /* Soft studio paper — subtle grain without fighting type. */
+  /* A quiet workspace surface with a hint of the landscape palette. */
   .bg-studio {
     background-color: var(--color-paper);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 0% -10%, rgb(255 59 47 / 0.06), transparent 55%),
-      radial-gradient(ellipse 60% 40% at 100% 0%, rgb(31 111 84 / 0.05), transparent 50%),
-      linear-gradient(180deg, rgb(248 246 239 / 0.55), transparent 28%);
+    background-image: radial-gradient(
+      ellipse 70% 40% at 100% 0%,
+      rgb(203 225 216 / 0.12),
+      transparent 60%
+    );
   }
 
   .font-display {
-    font-family: var(--font-space-grotesk), var(--font-display), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   }
 
-  /* Wordmark only — Bitcount Prop Single from Google Fonts. */
+  /* Shared wordmark typography. */
   .font-brand {
-    font-family: var(--font-brand), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   }
 
   .section-label {
-    font-family: var(--font-geist-mono), var(--font-mono), ui-monospace, monospace;
-    font-size: 11px;
-    letter-spacing: 0.14em;
+    font-family: var(--font-geist-sans), ui-sans-serif, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--color-ink-muted);
   }
@@ -178,7 +179,7 @@
     border: 1px solid var(--color-line);
     background: color-mix(in srgb, var(--color-card) 88%, white);
     border-radius: 1rem;
-    box-shadow: 0 1px 0 rgb(21 23 29 / 0.03);
+    box-shadow: 0 2px 8px rgb(23 61 56 / 0.025);
   }
 
   .rec-pulse {

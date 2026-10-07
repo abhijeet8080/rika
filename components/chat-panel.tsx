@@ -167,9 +167,9 @@ export function ChatPanel({
               {status === "submitted" && (
                 <li className="flex justify-start">
                   <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-line bg-white/70 px-4 py-3">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.2s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec [animation-delay:-0.1s]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-rec" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-moss [animation-delay:-0.2s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-moss [animation-delay:-0.1s]" />
+                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-moss" />
                   </div>
                 </li>
               )}
@@ -203,7 +203,7 @@ export function ChatPanel({
         <button
           type="submit"
           disabled={isBusy || !input.trim()}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rec text-white transition-colors hover:bg-rec-dark disabled:opacity-40"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white transition-colors hover:bg-primary/90 disabled:opacity-40"
           aria-label="Send"
         >
           <ArrowUp className="h-4 w-4" strokeWidth={2} />

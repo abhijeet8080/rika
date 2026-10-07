@@ -1,12 +1,22 @@
 "use client";
 
-import { CheckSquare, ChevronRight, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  ArrowUpRight,
+  MoreHorizontal,
+  Trash2,
+  Video,
+  Folder,
+  CalendarDays,
+} from "lucide-react";
 import Link from "next/link";
+import { Popover } from "@base-ui/react/popover";
+import styles from "./meetings.module.css";
+import { meetingGroup, meetingStatusLabel } from "@/lib/meeting-library";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CategorySelect } from "@/components/category-select";
 import { EmptyState } from "@/components/empty-state";
-import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/components/ui/toaster";
 import { formatMeetingWhen } from "@/lib/format-date";
 
@@ -16,6 +26,7 @@ export interface MeetingListItem {
   platform: string | null;
   meetingUrl: string;
   status: string;
+  createdAt?: Date | string;
   scheduledStart: Date | null;
   startedAt: Date | null;
   categoryId: string | null;
@@ -33,13 +44,6 @@ export function platformLabel(platform: string | null): string {
   if (platform === "google_meet") return "Meet";
   if (platform === "microsoft_teams" || platform === "teams") return "Teams";
   return platform.charAt(0).toUpperCase() + platform.slice(1);
-}
-
-function railTone(status: string): string {
-  if (status === "done") return "bg-moss";
-  if (status.startsWith("fatal")) return "bg-rec";
-  if (status === "in_call_recording") return "bg-rec";
-  return "bg-ink-muted/40";
 }
 
 export function MeetingList({
@@ -88,104 +92,153 @@ export function MeetingList({
   }
 
   return (
-    <ul className="flex flex-col gap-2">
-      {meetings.map((meeting) => (
-        <li
-          key={meeting.id}
-          className="group relative flex overflow-hidden rounded-2xl border border-line/90 bg-card/80 transition-all hover:border-ink/20 hover:bg-white hover:shadow-[0_8px_30px_-18px_rgb(21_23_29_/_0.35)]"
-        >
-          <span
-            aria-hidden
-            className={`w-1 shrink-0 ${railTone(meeting.status)}`}
-          />
-
-          <div className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+    <ul className={styles.meetingList}>
+      {meetings.map((meeting) => {
+        const title =
+          meeting.title ?? `${platformLabel(meeting.platform)} meeting`;
+        const category = categories.find(
+          (c) => c.id === meeting.categoryId,
+        )?.name;
+        const group = meetingGroup(meeting.status);
+        const tone =
+          meeting.status === "in_call_recording" ? "recording" : group;
+        return (
+          <li key={meeting.id} className={styles.meetingRow}>
             <Link
               href={`/meetings/${meeting.id}`}
-              className="min-w-0 flex-1"
+              className={styles.meetingLink}
+              aria-label={`Open ${title}`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="truncate font-display text-[15px] font-semibold tracking-tight text-ink">
-                  {meeting.title ?? meeting.meetingUrl}
-                </span>
-                <StatusBadge status={meeting.status} />
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] tracking-wide text-ink-muted uppercase">
-                <span suppressHydrationWarning>
-                  {formatMeetingWhen(
-                    meeting.startedAt ?? meeting.scheduledStart,
+              <span
+                className={styles.platformIcon}
+                data-platform={meeting.platform}
+              >
+                {meeting.platform === "zoom" ? (
+                  <Video size={20} fill="currentColor" />
+                ) : meeting.platform === "microsoft_teams" ||
+                  meeting.platform === "teams" ? (
+                  <span>T</span>
+                ) : (
+                  <Video size={20} />
+                )}
+              </span>
+              <div className={styles.meetingContent}>
+                <div className={styles.titleLine}>
+                  <h3>{title}</h3>
+                  <span className={styles.status} data-tone={tone}>
+                    <i />
+                    {meetingStatusLabel(meeting.status)}
+                  </span>
+                </div>
+                <p className={styles.summary}>
+                  {meeting.summary ??
+                    (group === "upcoming"
+                      ? "Rika will join when your meeting begins."
+                      : group === "attention"
+                        ? "Rika couldn't capture this call. Open the meeting for details."
+                        : group === "completed"
+                          ? "Open this meeting to revisit the conversation."
+                          : "Your conversation is being captured and prepared.")}
+                </p>
+                <div className={styles.meetingMeta}>
+                  <span suppressHydrationWarning>
+                    <CalendarDays size={12} />
+                    {formatMeetingWhen(
+                      meeting.startedAt ??
+                        meeting.scheduledStart ??
+                        meeting.createdAt,
+                    )}
+                  </span>
+                  <span>{platformLabel(meeting.platform)}</span>
+                  {category && (
+                    <span>
+                      <Folder size={12} />
+                      {category}
+                    </span>
                   )}
-                </span>
-                <span className="text-line">·</span>
-                <span>{platformLabel(meeting.platform)}</span>
-                {meeting.actionItemCount > 0 && (
-                  <>
-                    <span className="text-line">·</span>
-                    <span className="inline-flex items-center gap-1 normal-case tracking-normal text-moss">
-                      <CheckSquare className="h-3 w-3" strokeWidth={2} />
+                  {meeting.actionItemCount > 0 && (
+                    <span className={styles.actionsCount}>
+                      <CheckSquare size={12} />
                       {meeting.actionItemCount} action
                       {meeting.actionItemCount === 1 ? "" : "s"}
                     </span>
-                  </>
-                )}
-              </div>
-              {meeting.summary && (
-                <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-muted">
-                  {meeting.summary}
-                </p>
-              )}
-            </Link>
-
-            <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
-              <CategorySelect
-                key={`${meeting.categoryId ?? "none"}:${categories.length}`}
-                mode="bound"
-                meetingId={meeting.id}
-                initialCategoryId={meeting.categoryId}
-                categories={categories}
-              />
-
-              <Link
-                href={`/meetings/${meeting.id}`}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted transition-colors group-hover:bg-paper-soft group-hover:text-ink"
-                aria-label="Open meeting"
-              >
-                <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
-              </Link>
-
-              {confirmDeleteId === meeting.id ? (
-                <div className="flex shrink-0 items-center gap-1.5 font-mono text-[11px]">
-                  <button
-                    type="button"
-                    disabled={deletingId === meeting.id}
-                    onClick={() => handleDelete(meeting.id)}
-                    className="text-rec underline underline-offset-2 disabled:opacity-50"
-                  >
-                    {deletingId === meeting.id ? "Removing…" : "Remove"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={deletingId === meeting.id}
-                    onClick={() => setConfirmDeleteId(null)}
-                    className="text-ink-muted disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
+                  )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmDeleteId(meeting.id)}
-                  aria-label="Remove meeting"
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-ink-muted/50 transition-colors hover:bg-rec/8 hover:text-rec"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-              )}
-            </div>
-          </div>
-        </li>
-      ))}
+              </div>
+              <ArrowUpRight size={17} className={styles.rowArrow} />
+            </Link>
+            <Popover.Root
+              onOpenChange={(open) => {
+                if (!open) setConfirmDeleteId(null);
+              }}
+            >
+              <Popover.Trigger
+                aria-label={`More options for ${title}`}
+                className={styles.moreButton}
+              >
+                <MoreHorizontal size={19} />
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Positioner sideOffset={8} align="end">
+                  <Popover.Popup className={styles.actionMenu}>
+                    <span className={styles.menuLabel}>MEETING OPTIONS</span>
+                    <Link
+                      href={`/meetings/${meeting.id}`}
+                      className={styles.menuAction}
+                    >
+                      <ArrowUpRight size={15} />
+                      Open meeting
+                    </Link>
+                    <div className={styles.categoryMenu}>
+                      <span>Move to category</span>
+                      <CategorySelect
+                        key={`${meeting.categoryId ?? "none"}:${categories.length}`}
+                        mode="bound"
+                        meetingId={meeting.id}
+                        initialCategoryId={meeting.categoryId}
+                        categories={categories}
+                      />
+                    </div>
+                    {confirmDeleteId === meeting.id ? (
+                      <div className={styles.deleteConfirmation}>
+                        <p>Remove this meeting?</p>
+                        <small>This removes the meeting and its notes.</small>
+                        <div>
+                          <button
+                            type="button"
+                            disabled={deletingId === meeting.id}
+                            onClick={() => handleDelete(meeting.id)}
+                          >
+                            {deletingId === meeting.id
+                              ? "Removing…"
+                              : "Remove meeting"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={deletingId === meeting.id}
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(meeting.id)}
+                        className={`${styles.menuAction} ${styles.deleteAction}`}
+                      >
+                        <Trash2 size={14} />
+                        Remove meeting
+                      </button>
+                    )}
+                  </Popover.Popup>
+                </Popover.Positioner>
+              </Popover.Portal>
+            </Popover.Root>
+          </li>
+        );
+      })}
     </ul>
   );
 }

@@ -22,7 +22,7 @@ function PageHeader({
     >
       <div className="min-w-0 max-w-2xl">
         {eyebrow && <p className="section-label mb-2">{eyebrow}</p>}
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-[2.5rem] sm:leading-[1.1]">
+        <h1 className="font-display text-3xl font-medium tracking-tight text-ink sm:text-[2.25rem] sm:leading-[1.1]">
           {title}
         </h1>
         {description && (

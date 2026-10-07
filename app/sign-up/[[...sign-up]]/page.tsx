@@ -1,9 +1,10 @@
 import { SignUp } from "@clerk/nextjs";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default function Page() {
   return (
-    <div className="flex flex-1 items-center justify-center bg-paper">
+    <AuthShell>
       <SignUp path="/sign-up" signInUrl="/sign-in" />
-    </div>
+    </AuthShell>
   );
 }
