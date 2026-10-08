@@ -1,5 +1,4 @@
-import { db } from "@/lib/db/client";
-import { meetings } from "@/lib/db/schema";
+import { meetingCreationAccount, registerCreatedMeeting } from "@/lib/lifecycle/register-meeting";
 import { scheduleCalendarBot } from "./client";
 import { extractEventTitle } from "./event-title";
 import { BOT_DISPLAY_NAME } from "./live-chat";
@@ -15,16 +14,18 @@ export async function scheduleBotForCalendarEvent(
   icalUid: string,
   options: {
     recallAccount?: string;
+    calendarConnectionId?: string;
     categoryId?: string | null;
     recordVideo?: boolean;
     recordAudio?: boolean;
   } = {},
 ) {
-  const { categoryId, recordVideo, recordAudio, recallAccount = "primary" } = options;
+  const { categoryId, recordVideo, recordAudio, calendarConnectionId, recallAccount = "primary" } = options;
 
+  const account = await meetingCreationAccount(userId, calendarConnectionId, categoryId);
   const event = await scheduleCalendarBot(eventId, {
-    deduplicationKey: icalUid,
-    botConfig: { botName: BOT_DISPLAY_NAME, recordVideo, recordAudio },
+    deduplicationKey: `${userId}:${icalUid}`,
+    botConfig: { botName: BOT_DISPLAY_NAME, recordVideo, recordAudio, retentionDays: account.retentionDays },
   }, recallAccount);
 
   // Recall returns scheduled bots as a `bots` array (confirmed live) —
@@ -38,32 +39,11 @@ export async function scheduleBotForCalendarEvent(
     typeof event.meeting_url === "string" ? event.meeting_url : "";
   const title = extractEventTitle(event);
 
-  const [meeting] = await db
-    .insert(meetings)
-    .values({
-      userId,
-      recallBotId: botId,
-      recallAccount,
-      title,
-      categoryId: categoryId ?? null,
-      platform: meetingUrl ? detectPlatform(meetingUrl) : null,
-      meetingUrl,
-      calendarEventId: event.id,
-      scheduledStart: new Date(event.start_time),
-      status: "scheduled",
-    })
-    .onConflictDoUpdate({
-      target: meetings.recallBotId,
-      set: {
-        title,
-        status: "scheduled",
-        scheduledStart: new Date(event.start_time),
-        // Only auto-record/backfill call sites omit categoryId — don't
-        // let a re-sync silently clear a category picked at schedule time.
-        ...(categoryId !== undefined ? { categoryId } : {}),
-      },
-    })
-    .returning();
-
+  const meeting = await registerCreatedMeeting(userId, {
+    botId, account: recallAccount, title, categoryId, platform: meetingUrl ? detectPlatform(meetingUrl) : null,
+    meetingUrl, calendarEventId: event.id, calendarConnectionId,
+    scheduledStart: new Date(event.start_time), status: "scheduled",
+  });
+  if (meeting.deletionRequestedAt) throw new Error("Account or calendar disconnected while scheduling");
   return meeting;
 }

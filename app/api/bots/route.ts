@@ -1,12 +1,13 @@
+import { meetingCreationAccount, registerCreatedMeeting } from "@/lib/lifecycle/register-meeting";
 import { getCurrentUserId } from "@/lib/auth";
-import { db } from "@/lib/db/client";
 import { findActiveMeetingForUrl } from "@/lib/db/meetings";
-import { meetings } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { getRecallAccount, getDefaultRecallAccountId } from "@/lib/recall/accounts";
 import { createBot } from "@/lib/recall/client";
 import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
 import { detectPlatform } from "@/lib/recall/platform";
+
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const { meetingUrl, recordVideo, recordAudio, recallAccount } = await request.json();
@@ -47,25 +48,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const account = await meetingCreationAccount(userId);
   const bot = await createBot({
     meetingUrl,
     botName: BOT_DISPLAY_NAME,
     recordVideo,
     recordAudio,
+    retentionDays: account.retentionDays,
   }, accountId);
   const latestStatus = bot.status_changes.at(-1)?.code ?? "joining";
 
-  const [meeting] = await db
-    .insert(meetings)
-    .values({
-      userId,
-      recallBotId: bot.id,
-      recallAccount: accountId,
-      platform: detectPlatform(meetingUrl),
-      meetingUrl,
-      status: latestStatus,
-    })
-    .returning();
-
+  const meeting = await registerCreatedMeeting(userId, {
+    botId: bot.id, account: accountId, platform: detectPlatform(meetingUrl), meetingUrl, status: latestStatus,
+  });
+  if (meeting.deletionRequestedAt) return Response.json({ error: "Account deletion is in progress" }, { status: 409 });
   return Response.json({ meeting }, { status: 201 });
 }

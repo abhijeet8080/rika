@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { embedChunks } from "@/lib/ai/embeddings";
 import { db } from "@/lib/db/client";
 import { meetings, transcriptChunks } from "@/lib/db/schema";
 import { upsertTranscriptChunks } from "@/lib/vector/transcript-chunks";
 import { qdrant, TRANSCRIPT_CHUNKS_COLLECTION } from "@/lib/vector/client";
+import { meetingAcceptsWrites, writableMeeting } from "@/lib/lifecycle/meeting-access";
 import { storeLiveTranscript } from "./store-live-transcript";
 import type { RecallRealtimeTranscriptWebhookPayload } from "./types";
 
@@ -33,7 +34,7 @@ export async function processLiveTranscript(
   // processCompletedBot switches to "processing" before rebuilding the
   // canonical transcript. Ignore late real-time deliveries in that window
   // so they cannot race the clean rebuild and leave duplicate chunks.
-  if (!meeting || meeting.status === "done" || meeting.status === "processing" || meeting.status.startsWith("fatal")) {
+  if (!meeting || !(await meetingAcceptsWrites(meeting.id)) || meeting.status === "done" || meeting.status === "processing" || meeting.status.startsWith("fatal")) {
     return;
   }
 
@@ -65,13 +66,16 @@ export async function processLiveTranscript(
     async isActive() {
       const [current] = await db.select({ status: meetings.status }).from(meetings)
         .where(eq(meetings.id, meeting.id));
-      return Boolean(current && current.status !== "done" && current.status !== "processing" && !current.status.startsWith("fatal"));
+      return Boolean(await meetingAcceptsWrites(meeting.id)) && Boolean(current && current.status !== "done" && current.status !== "processing" && !current.status.startsWith("fatal"));
     },
     async upsertVector(chunk, vector) {
       await upsertTranscriptChunks([{ ...chunk, vector }]);
     },
     async saveChunk(chunk) {
-      await db.insert(transcriptChunks).values(chunk).onConflictDoNothing();
+      await db.execute(sql`WITH active AS (${writableMeeting(meeting.id)})
+        INSERT INTO transcript_chunks (id, meeting_id, speaker, start_ms, end_ms, text)
+        SELECT ${chunk.id}::uuid, id, ${chunk.speaker}, ${chunk.startMs}, ${chunk.endMs}, ${chunk.text}
+        FROM active ON CONFLICT DO NOTHING`);
     },
     async removeChunk(id) {
       await qdrant.delete(TRANSCRIPT_CHUNKS_COLLECTION, { points: [id], wait: true });

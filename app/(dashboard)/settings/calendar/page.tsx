@@ -14,7 +14,9 @@ export default async function CalendarSettingsPage() {
     provider: calendarConnections.provider,
     email: calendarConnections.email,
     autoRecord: calendarConnections.autoRecord,
+    status: calendarConnections.status,
+    cleanupError: calendarConnections.cleanupError,
   }).from(calendarConnections).where(eq(calendarConnections.userId, userId));
 
-  return <CalendarWorkspace connections={connections} />;
+  return <CalendarWorkspace connections={connections} outlookEnabled={Boolean(process.env.MICROSOFT_OAUTH_CLIENT_ID)} />;
 }

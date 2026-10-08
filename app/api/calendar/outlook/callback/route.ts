@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getCurrentUserId } from "@/lib/auth";
 import { upsertCalendarConnection } from "@/lib/db/calendar-connections";
+import { preserveUnlinkedCalendar } from "@/lib/lifecycle/repository";
 import { env } from "@/lib/env";
-import { getDefaultRecallAccountId } from "@/lib/recall/accounts";
-import { createCalendar } from "@/lib/recall/client";
+import { verifyCalendarAuthorization } from "@/lib/lifecycle/calendar-oauth";
+import { createCalendar, deleteCalendar } from "@/lib/recall/client";
 
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const USERINFO_URL = "https://graph.microsoft.com/oidc/userinfo";
@@ -22,6 +22,8 @@ function redirectWithError(requestUrl: string, message: string) {
   return NextResponse.redirect(target);
 }
 
+export const maxDuration = 300;
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -38,12 +40,16 @@ export async function GET(request: Request) {
       `Microsoft denied access: ${oauthError}`,
     );
   }
-  if (!code || !state || !expectedState || state !== expectedState) {
+  if (!code || !state || !expectedState) {
     return redirectWithError(
       request.url,
       "Invalid OAuth state — please try connecting again.",
     );
   }
+
+  let authorization;
+  try { authorization = await verifyCalendarAuthorization(expectedState, state); }
+  catch { return redirectWithError(request.url, "Invalid OAuth state — please try connecting again."); }
 
   const redirectUri = new URL(
     "/api/calendar/outlook/callback",
@@ -91,7 +97,7 @@ export async function GET(request: Request) {
     // best-effort only — Recall works fine without oauth_email
   }
 
-  const recallAccount = getDefaultRecallAccountId();
+  const recallAccount = authorization.recallAccount;
   const calendar = await createCalendar({
     platform: "microsoft_outlook",
     oauthClientId: env.MICROSOFT_OAUTH_CLIENT_ID,
@@ -100,15 +106,26 @@ export async function GET(request: Request) {
     oauthEmail,
   }, recallAccount);
 
-  const userId = await getCurrentUserId();
-  await upsertCalendarConnection(
-    userId,
-    "microsoft_outlook",
-    calendar.id,
-    calendar.status,
-    oauthEmail,
-    recallAccount,
-  );
+  const userId = authorization.userId;
+  try {
+    await upsertCalendarConnection(
+      userId,
+      "microsoft_outlook",
+      calendar.id,
+      calendar.status,
+      oauthEmail,
+      recallAccount,
+      authorization.connectionId,
+    );
+  } catch (error) {
+    try { await deleteCalendar(calendar.id, recallAccount); }
+    catch (cleanupError) {
+      console.error("Could not remove failed calendar connection", cleanupError);
+      try { await preserveUnlinkedCalendar(userId, "microsoft_outlook", calendar.id, recallAccount); }
+      catch (saveError) { console.error("Could not retain failed calendar cleanup", saveError); }
+    }
+    return redirectWithError(request.url, error instanceof Error ? error.message : "Could not save calendar connection");
+  }
 
   return NextResponse.redirect(
     new URL("/settings/calendar?connected=outlook", request.url),

@@ -1,10 +1,12 @@
 import { getCurrentUserId } from "@/lib/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { calendarConnections } from "@/lib/db/schema";
 import { listCalendarEvents } from "@/lib/recall/client";
 import { rateLimit } from "@/lib/rate-limit";
 import { scheduleBotForCalendarEvent } from "@/lib/recall/schedule-event";
+
+export const maxDuration = 300;
 
 export async function POST(
   request: Request,
@@ -39,7 +41,7 @@ export async function POST(
       return Response.json({ error: "calendarConnectionId must be a string" }, { status: 400 });
     }
     const connections = await db.select().from(calendarConnections).where(
-      and(eq(calendarConnections.userId, userId),
+      and(eq(calendarConnections.userId, userId), eq(calendarConnections.status, "connected"), isNull(calendarConnections.deletionRequestedAt),
         calendarConnectionId ? eq(calendarConnections.id, calendarConnectionId) : undefined),
     );
     // Resolve ownership using server-held calendar connections. Never trust
@@ -54,7 +56,7 @@ export async function POST(
             return Response.json({ error: "Event has no available meeting" }, { status: 400 });
           }
           const meeting = await scheduleBotForCalendarEvent(userId, id, event.ical_uid, {
-            categoryId, recordVideo, recordAudio, recallAccount: connection.recallAccount,
+            categoryId, recordVideo, recordAudio, recallAccount: connection.recallAccount, calendarConnectionId: connection.id,
           });
           return Response.json({ meeting }, { status: 201 });
         }

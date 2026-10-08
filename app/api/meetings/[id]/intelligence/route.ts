@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { generateMeetingIntelligence } from "@/lib/ai/meeting-intelligence";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
@@ -22,7 +22,7 @@ export async function POST(
     .from(meetings)
     .where(and(eq(meetings.id, id), eq(meetings.userId, userId)));
 
-  if (!meeting) {
+  if (!meeting || meeting.deletionRequestedAt) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
 
@@ -69,7 +69,7 @@ export async function POST(
         actionItems: intelligence.actionItems,
         highlights: intelligence.highlights,
       })
-      .where(eq(meetings.id, meeting.id))
+      .where(and(eq(meetings.id, meeting.id), isNull(meetings.deletionRequestedAt)))
       .returning({
         summary: meetings.summary,
         actionItems: meetings.actionItems,

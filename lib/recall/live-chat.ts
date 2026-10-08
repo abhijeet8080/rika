@@ -1,4 +1,5 @@
-import { desc, eq } from "drizzle-orm";
+import { meetingAcceptsWrites, writableMeeting } from "@/lib/lifecycle/meeting-access";
+import { desc, eq, sql } from "drizzle-orm";
 import { answerQuestionText } from "@/lib/ai/rag";
 import { db } from "@/lib/db/client";
 import { liveChatMessages, meetings } from "@/lib/db/schema";
@@ -86,7 +87,7 @@ export async function handleLiveChatMessage(
     .from(meetings)
     .where(eq(meetings.recallBotId, botId));
 
-  if (!meeting) return;
+  if (!meeting || !(await meetingAcceptsWrites(meeting.id))) return;
 
   const conversationHistory = await getRecentHistory(meeting.id);
 
@@ -106,10 +107,13 @@ export async function handleLiveChatMessage(
     CHAT_CHAR_LIMITS[meeting.platform ?? ""] ?? DEFAULT_CHAT_CHAR_LIMIT;
   const truncated = truncate(answer, limit);
 
-  await db.insert(liveChatMessages).values([
-    { meetingId: meeting.id, role: "user", participantName, text: question },
-    { meetingId: meeting.id, role: "assistant", text: truncated },
-  ]);
-
-  await sendChatMessage(botId, truncated, meeting.recallAccount);
+  if (!(await meetingAcceptsWrites(meeting.id))) return;
+  const saved = await db.execute(sql`WITH active AS (${writableMeeting(meeting.id)})
+    INSERT INTO live_chat_messages (meeting_id, role, participant_name, text)
+    SELECT active.id, message.role, message.name, message.text FROM active,
+    jsonb_to_recordset(${JSON.stringify([
+      { role: "user", name: participantName, text: question },
+      { role: "assistant", name: null, text: truncated },
+    ])}::jsonb) AS message(role text, name text, text text) RETURNING id`);
+  if (saved.rows.length && await meetingAcceptsWrites(meeting.id)) await sendChatMessage(botId, truncated, meeting.recallAccount);
 }

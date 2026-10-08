@@ -12,6 +12,7 @@ export interface CreateBotParams {
   recordVideo?: boolean;
   /** Default true. Transcript is always captured regardless of these. */
   recordAudio?: boolean;
+  retentionDays?: number | null;
   /** Overrides the built recording config (including the video/audio flags above) entirely. */
   recordingConfig?: Record<string, unknown>;
 }

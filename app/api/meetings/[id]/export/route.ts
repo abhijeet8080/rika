@@ -103,7 +103,7 @@ export async function GET(
     .from(meetings)
     .where(and(eq(meetings.id, id), eq(meetings.userId, userId)));
 
-  if (!meeting) {
+  if (!meeting || meeting.deletionRequestedAt) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
 

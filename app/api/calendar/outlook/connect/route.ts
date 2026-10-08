@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { calendarAuthorizationState } from "@/lib/lifecycle/calendar-oauth";
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 
@@ -19,7 +19,10 @@ export async function GET(request: Request) {
     "/api/calendar/outlook/callback",
     request.url,
   ).toString();
-  const state = randomBytes(16).toString("hex");
+  let authorization;
+  try { authorization = await calendarAuthorizationState(request, "microsoft_outlook"); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Could not connect calendar" }, { status: 409 }); }
+  const state = authorization.state;
 
   const authUrl = new URL(MICROSOFT_AUTH_URL);
   authUrl.searchParams.set("client_id", env.MICROSOFT_OAUTH_CLIENT_ID);
@@ -33,7 +36,7 @@ export async function GET(request: Request) {
   authUrl.searchParams.set("state", state);
 
   const response = NextResponse.redirect(authUrl);
-  response.cookies.set("outlook_oauth_state", state, {
+  response.cookies.set("outlook_oauth_state", JSON.stringify(authorization), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

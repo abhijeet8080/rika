@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { calendarConnections } from "@/lib/db/schema";
@@ -11,7 +11,7 @@ export async function GET() {
   const connections = await db
     .select()
     .from(calendarConnections)
-    .where(eq(calendarConnections.userId, userId));
+    .where(and(eq(calendarConnections.userId, userId), eq(calendarConnections.status, "connected"), isNull(calendarConnections.deletionRequestedAt)));
 
   if (connections.length === 0) {
     return Response.json({ error: "No calendar connected" }, { status: 404 });

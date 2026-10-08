@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   Sparkles,
   Video,
+  Settings2,
 } from "lucide-react";
 import { ToastProvider } from "@/components/ui/toaster";
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/meetings", label: "Meetings", icon: Video },
   { href: "/chat", label: "Ask Rika", icon: MessageSquareText },
   { href: "/settings/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/settings/account", label: "Account", icon: Settings2 },
 ];
 
 export default function DashboardLayout({

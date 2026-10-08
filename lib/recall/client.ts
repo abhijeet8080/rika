@@ -26,8 +26,10 @@ import type {
 function getRecordingConfig({
   recordVideo = true,
   recordAudio = true,
-}: { recordVideo?: boolean; recordAudio?: boolean } = {}) {
+  retentionDays,
+}: { recordVideo?: boolean; recordAudio?: boolean; retentionDays?: number | null } = {}) {
   return {
+    ...(retentionDays !== undefined ? { retention: retentionDays === null ? { type: "forever" } : { type: "timed", hours: retentionDays * 24 } } : {}),
     ...(recordVideo ? { video_mixed_mp4: {} } : { video_mixed_mp4: null }),
     ...(recordAudio ? { audio_mixed_mp3: {} } : {}),
     transcript: {
@@ -104,6 +106,7 @@ async function recallFetch<T>(
   accountId = "primary",
 ): Promise<T> {
   const res = await fetch(apiUrl(version, path, accountId), {
+    signal: AbortSignal.timeout(20_000),
     ...init,
     headers: {
       Authorization: `Token ${getRecallAccount(accountId).apiKey}`,
@@ -113,10 +116,30 @@ async function recallFetch<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`Recall API ${res.status} ${path}: ${await res.text()}`);
+    throw new RecallApiError(res.status, path, await res.text());
   }
 
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export class RecallApiError extends Error {
+  constructor(public readonly status: number, path: string, detail: string) {
+    super(`Recall API ${status} ${path}: ${detail}`);
+  }
+}
+
+async function recallDelete(version: "v1" | "v2", path: string, accountId: string) {
+  try { await recallFetch<void>(version, path, { method: "DELETE" }, accountId); }
+  catch (error) { if (!(error instanceof RecallApiError && error.status === 404)) throw error; }
+}
+
+export async function deleteCalendar(calendarId: string, accountId = "primary") {
+  await recallDelete("v2", `/calendars/${calendarId}/`, accountId);
+}
+
+export async function deleteRecording(recordingId: string, accountId = "primary") {
+  await recallDelete("v1", `/recording/${recordingId}/`, accountId);
 }
 
 export async function createBot(params: CreateBotParams, accountId = getDefaultRecallAccountId()): Promise<RecallBot> {
@@ -132,6 +155,7 @@ export async function createBot(params: CreateBotParams, accountId = getDefaultR
         getRecordingConfig({
           recordVideo: params.recordVideo,
           recordAudio: params.recordAudio,
+          retentionDays: params.retentionDays,
         }),
       automatic_leave: getAutomaticLeaveConfig(),
     }),
@@ -143,18 +167,9 @@ export async function retrieveBot(botId: string, accountId = "primary"): Promise
 }
 
 // Only works on a bot that hasn't joined a call yet (405 otherwise) — a
-// separate raw fetch from recallFetch since a successful delete returns
-// 204 with no body to parse.
+// The shared delete helper handles empty 204 responses and missing bots.
 export async function cancelScheduledBot(botId: string, accountId = "primary"): Promise<void> {
-  const res = await fetch(apiUrl("v1", `/bot/${botId}/`, accountId), {
-    method: "DELETE",
-    headers: { Authorization: `Token ${getRecallAccount(accountId).apiKey}` },
-  });
-  if (!res.ok) {
-    throw new Error(
-      `Recall API ${res.status} DELETE /bot/${botId}/: ${await res.text()}`,
-    );
-  }
+  await recallDelete("v1", `/bot/${botId}/`, accountId);
 }
 
 // Pulls the bot out of an already-active call — irreversible, per Recall.
@@ -230,6 +245,7 @@ export async function scheduleCalendarBot(
     recordingConfig,
     recordVideo,
     recordAudio,
+    retentionDays,
     ...rest
   } = params.botConfig;
 
@@ -246,7 +262,7 @@ export async function scheduleCalendarBot(
           join_at: joinAt,
           metadata,
           recording_config:
-            recordingConfig ?? getRecordingConfig({ recordVideo, recordAudio }),
+            recordingConfig ?? getRecordingConfig({ recordVideo, recordAudio, retentionDays }),
           automatic_leave: getAutomaticLeaveConfig(),
           ...rest,
         },

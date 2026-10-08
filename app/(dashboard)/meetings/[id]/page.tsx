@@ -48,7 +48,7 @@ export default async function MeetingDetailPage({
 
   const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
 
-  if (!meeting || meeting.userId !== userId) {
+  if (!meeting || meeting.userId !== userId || meeting.deletionRequestedAt) {
     notFound();
   }
 

@@ -112,7 +112,7 @@ async function resolveScopedMeetingIds(scope: ChatScope): Promise<string[]> {
     const [owned] = await db
       .select({ id: meetings.id })
       .from(meetings)
-      .where(and(eq(meetings.id, scope.meetingId), eq(meetings.userId, scope.userId)));
+      .where(and(eq(meetings.id, scope.meetingId), eq(meetings.userId, scope.userId), isNull(meetings.deletionRequestedAt)));
     return owned ? restrictToPlannerSelection([owned.id]) : [];
   }
 
@@ -122,8 +122,8 @@ async function resolveScopedMeetingIds(scope: ChatScope): Promise<string[]> {
       .from(meetings)
       .where(
         scope.categoryId
-          ? and(eq(meetings.userId, scope.userId), eq(meetings.categoryId, scope.categoryId))
-          : and(eq(meetings.userId, scope.userId), isNull(meetings.categoryId)),
+          ? and(eq(meetings.userId, scope.userId), eq(meetings.categoryId, scope.categoryId), isNull(meetings.deletionRequestedAt))
+          : and(eq(meetings.userId, scope.userId), isNull(meetings.categoryId), isNull(meetings.deletionRequestedAt)),
       );
     const meetingIds = rows.map((row) => row.id);
     if (!scope.includeMeetingId || meetingIds.includes(scope.includeMeetingId)) {
@@ -136,6 +136,7 @@ async function resolveScopedMeetingIds(scope: ChatScope): Promise<string[]> {
         and(
           eq(meetings.id, scope.includeMeetingId),
           eq(meetings.userId, scope.userId),
+          isNull(meetings.deletionRequestedAt),
         ),
       );
     return restrictToPlannerSelection(

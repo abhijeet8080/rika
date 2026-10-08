@@ -6,7 +6,20 @@ import {
   text,
   timestamp,
   uuid,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+// Tombstones remain until provider and vector deletion succeed. A failed or
+// interrupted cleanup can be retried without losing the provider identifiers.
+function cleanupColumns() {
+  return {
+    deletionRequestedAt: timestamp("deletion_requested_at", { withTimezone: true }),
+    cleanupAfter: timestamp("cleanup_after", { withTimezone: true }).notNull().defaultNow(),
+    cleanupLeaseToken: uuid("cleanup_lease_token"),
+    cleanupLeaseExpiresAt: timestamp("cleanup_lease_expires_at", { withTimezone: true }),
+    cleanupError: text("cleanup_error"),
+  };
+}
 
 /** Extracted follow-up from a completed meeting transcript. */
 export type MeetingActionItem = {
@@ -23,6 +36,9 @@ export type MeetingHighlight = {
 };
 
 export const users = pgTable("users", {
+  ...cleanupColumns(),
+  retentionDays: integer("retention_days"),
+  clerkDeletedAt: timestamp("clerk_deleted_at", { withTimezone: true }),
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   // Nullable — pre-auth (Phase 1) rows get linked to a Clerk account on
@@ -34,6 +50,7 @@ export const users = pgTable("users", {
 });
 
 export const calendarConnections = pgTable("calendar_connections", {
+  ...cleanupColumns(),
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
@@ -53,7 +70,7 @@ export const calendarConnections = pgTable("calendar_connections", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (table) => [uniqueIndex("calendar_connections_account_unique").on(table.userId, table.provider, table.email, table.recallAccount)]);
 
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -67,6 +84,7 @@ export const categories = pgTable("categories", {
 });
 
 export const meetings = pgTable("meetings", {
+  ...cleanupColumns(),
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
     .notNull()
@@ -82,6 +100,7 @@ export const meetings = pgTable("meetings", {
   platform: text("platform"), // 'zoom' | 'google_meet' | 'teams'
   meetingUrl: text("meeting_url").notNull(),
   calendarEventId: text("calendar_event_id"),
+  calendarConnectionId: uuid("calendar_connection_id").references(() => calendarConnections.id, { onDelete: "set null" }),
   scheduledStart: timestamp("scheduled_start", { withTimezone: true }),
   startedAt: timestamp("started_at", { withTimezone: true }),
   endedAt: timestamp("ended_at", { withTimezone: true }),

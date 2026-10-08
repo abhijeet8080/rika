@@ -1,24 +1,26 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { after } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import {
   categories,
-  liveChatMessages,
   meetings,
-  participants,
-  transcriptChunks,
 } from "@/lib/db/schema";
-import {
-  cancelScheduledBot,
-  removeBotFromCall,
-} from "@/lib/recall/client";
-import { deleteTranscriptChunksForMeeting } from "@/lib/vector/transcript-chunks";
+import { requestMeetingDeletion } from "@/lib/lifecycle/repository";
+import { runCleanupStep } from "@/lib/lifecycle/cleanup";
+
+import { z } from "zod";
+import { isSameOrigin } from "@/lib/lifecycle/request-origin";
+
+export const maxDuration = 300;
 
 export async function PATCH(
   request: Request,
   { params }: RouteContext<"/api/meetings/[id]">,
 ) {
+  if (!isSameOrigin(request)) return Response.json({ error: "Invalid request origin" }, { status: 403 });
   const { id } = await params;
+  if (!z.uuid().safeParse(id).success) return Response.json({ error: "Meeting not found" }, { status: 404 });
   const { categoryId } = await request.json();
 
   if (categoryId !== null && typeof categoryId !== "string") {
@@ -33,7 +35,7 @@ export async function PATCH(
   const [meeting] = await db
     .select({ id: meetings.id })
     .from(meetings)
-    .where(and(eq(meetings.id, id), eq(meetings.userId, userId)));
+    .where(and(eq(meetings.id, id), eq(meetings.userId, userId), isNull(meetings.deletionRequestedAt)));
 
   if (!meeting) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
@@ -55,7 +57,7 @@ export async function PATCH(
   const [updated] = await db
     .update(meetings)
     .set({ categoryId })
-    .where(eq(meetings.id, id))
+    .where(and(eq(meetings.id, id), eq(meetings.userId, userId), isNull(meetings.deletionRequestedAt)))
     .returning();
 
   return Response.json({ meeting: updated });
@@ -65,47 +67,13 @@ export async function DELETE(
   request: Request,
   { params }: RouteContext<"/api/meetings/[id]">,
 ) {
+  if (!isSameOrigin(request)) return Response.json({ error: "Invalid request origin" }, { status: 403 });
   const { id } = await params;
+  if (!z.uuid().safeParse(id).success) return Response.json({ error: "Meeting not found" }, { status: 404 });
   const userId = await getCurrentUserId();
-
-  const [meeting] = await db
-    .select()
-    .from(meetings)
-    .where(and(eq(meetings.id, id), eq(meetings.userId, userId)));
-
-  if (!meeting) {
+  if (!(await requestMeetingDeletion(id, userId))) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
-
-  const isFinished =
-    meeting.status === "done" || meeting.status.startsWith("fatal");
-
-  if (!isFinished) {
-    // Not yet joined a call: this cancels it outright. Already in a
-    // call: cancelScheduledBot 405s, so fall back to pulling it out of
-    // the live call instead of leaving it running unattended after the
-    // meeting disappears from Rika's UI.
-    try {
-      await cancelScheduledBot(meeting.recallBotId, meeting.recallAccount);
-    } catch {
-      try {
-        await removeBotFromCall(meeting.recallBotId, meeting.recallAccount);
-      } catch (err) {
-        console.error(
-          `Failed to stop Recall bot ${meeting.recallBotId} during delete`,
-          err,
-        );
-      }
-    }
-  }
-
-  await deleteTranscriptChunksForMeeting(meeting.id);
-  // No onDelete cascade on these FKs — clear them before the meeting row
-  // itself or the delete below fails on the foreign key constraint.
-  await db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, meeting.id));
-  await db.delete(participants).where(eq(participants.meetingId, meeting.id));
-  await db.delete(liveChatMessages).where(eq(liveChatMessages.meetingId, meeting.id));
-  await db.delete(meetings).where(eq(meetings.id, meeting.id));
-
-  return Response.json({ deleted: true });
+  after(async () => { await runCleanupStep("meeting", id); });
+  return Response.json({ deletionRequested: true }, { status: 202 });
 }

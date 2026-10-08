@@ -14,7 +14,9 @@
     "vector:setup": "tsx --env-file=.env.local lib/vector/setup-collection.ts",
     "test:recall": "tsx --test scripts/recall-accounts.test.ts",
     "test:rag": "tsx --test scripts/rag-regression.test.ts",
-    "rag:eval": "tsx --env-file=.env.local scripts/evaluate-rag.ts"
+    "rag:eval": "tsx --env-file=.env.local scripts/evaluate-rag.ts",
+    "test:lifecycle": "tsx --test scripts/lifecycle*.test.ts",
+    "lifecycle:cleanup": "tsx --env-file=.env.local scripts/lifecycle-cleanup.ts"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.15",
@@ -55,6 +57,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "postgres": "^3.4.9",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5"

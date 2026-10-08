@@ -1,5 +1,6 @@
+import { meetingAcceptsWrites, writableMeeting } from "@/lib/lifecycle/meeting-access";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { embedChunks } from "@/lib/ai/embeddings";
 import { generateMeetingIntelligence } from "@/lib/ai/meeting-intelligence";
 import { db } from "@/lib/db/client";
@@ -63,14 +64,14 @@ export async function markBotFatal(
   await db
     .update(meetings)
     .set({ status: subCode ? `fatal:${subCode}` : "fatal", endedAt: new Date() })
-    .where(eq(meetings.recallBotId, botId));
+    .where(and(eq(meetings.recallBotId, botId), isNull(meetings.deletionRequestedAt)));
 }
 
 export async function processCompletedBot(botId: string): Promise<void> {
   const [meeting] = await db
     .select()
     .from(meetings)
-    .where(eq(meetings.recallBotId, botId));
+    .where(and(eq(meetings.recallBotId, botId), isNull(meetings.deletionRequestedAt)));
 
   if (!meeting) {
     throw new Error(`No meeting row found for Recall bot ${botId}`);
@@ -78,14 +79,14 @@ export async function processCompletedBot(botId: string): Promise<void> {
 
   // Webhooks can be redelivered (Recall retries for up to 24h on failure) —
   // make reprocessing a no-op instead of duplicating chunks/participants.
-  if (meeting.status === "done") {
+  if (meeting.status === "done" || !(await meetingAcceptsWrites(meeting.id))) {
     return;
   }
 
   await db
     .update(meetings)
     .set({ status: "processing" })
-    .where(eq(meetings.id, meeting.id));
+    .where(and(eq(meetings.id, meeting.id), isNull(meetings.deletionRequestedAt)));
 
   const bot = await retrieveBot(botId, meeting.recallAccount);
   const recording = bot.recordings?.[0];
@@ -109,6 +110,7 @@ export async function processCompletedBot(botId: string): Promise<void> {
   // but a later Postgres or intelligence call timed out). Start every retry
   // from a clean, meeting-scoped state so random UUIDs cannot accumulate as
   // orphaned vectors or duplicate transcript rows.
+  if (!(await meetingAcceptsWrites(meeting.id))) return;
   await Promise.all([
     deleteTranscriptChunksForMeeting(meeting.id),
     db.delete(transcriptChunks).where(eq(transcriptChunks.meetingId, meeting.id)),
@@ -127,6 +129,7 @@ export async function processCompletedBot(botId: string): Promise<void> {
   if (chunksWithIds.length > 0) {
     const embeddings = await embedChunks(chunksWithIds.map((c) => c.text));
 
+    if (!(await meetingAcceptsWrites(meeting.id))) return;
     await upsertTranscriptChunks(
       chunksWithIds.map((c, i) => ({
         id: c.id,
@@ -140,16 +143,12 @@ export async function processCompletedBot(botId: string): Promise<void> {
       })),
     );
 
-    await db.insert(transcriptChunks).values(
-      chunksWithIds.map((c) => ({
-        id: c.id,
-        meetingId: meeting.id,
-        speaker: c.speaker,
-        startMs: c.startMs,
-        endMs: c.endMs,
-        text: c.text,
-      })),
-    );
+    const saved = await db.execute(sql`WITH active AS (${writableMeeting(meeting.id)})
+      INSERT INTO transcript_chunks (id, meeting_id, speaker, start_ms, end_ms, text)
+      SELECT c.id, active.id, c.speaker, c."startMs", c."endMs", c.text FROM active,
+      jsonb_to_recordset(${JSON.stringify(chunksWithIds)}::jsonb)
+        AS c(id uuid, speaker text, "startMs" integer, "endMs" integer, text text) RETURNING id`);
+    if (!saved.rows.length) { await deleteTranscriptChunksForMeeting(meeting.id); return; }
   }
 
   const uniqueParticipants = new Map<number, TranscriptEntry["participant"]>();
@@ -158,13 +157,11 @@ export async function processCompletedBot(botId: string): Promise<void> {
   }
 
   if (uniqueParticipants.size > 0) {
-    await db.insert(participants).values(
-      Array.from(uniqueParticipants.values()).map((p) => ({
-        meetingId: meeting.id,
-        name: p.name,
-        email: p.email ?? null,
-      })),
-    );
+    await db.execute(sql`WITH active AS (${writableMeeting(meeting.id)})
+      INSERT INTO participants (meeting_id, name, email)
+      SELECT active.id, p.name, p.email FROM active,
+      jsonb_to_recordset(${JSON.stringify(Array.from(uniqueParticipants.values()).map((p) => ({ name: p.name, email: p.email ?? null })))}::jsonb)
+        AS p(name text, email text)`);
   }
 
   // "Join now" meetings have no calendar event to pull a title from up
@@ -215,5 +212,5 @@ export async function processCompletedBot(botId: string): Promise<void> {
       actionItems,
       highlights,
     })
-    .where(eq(meetings.id, meeting.id));
+    .where(and(eq(meetings.id, meeting.id), isNull(meetings.deletionRequestedAt)));
 }

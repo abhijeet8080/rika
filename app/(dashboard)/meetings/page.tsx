@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { MeetingsWorkspace } from "@/components/meetings-workspace";
 import {
   getDefaultRecallAccountId,
@@ -31,7 +31,7 @@ export default async function MeetingsPage() {
         actionItems: meetings.actionItems,
       })
       .from(meetings)
-      .where(eq(meetings.userId, userId))
+      .where(and(eq(meetings.userId, userId), isNull(meetings.deletionRequestedAt)))
       .orderBy(desc(meetings.createdAt)),
     db
       .select({ id: categories.id, name: categories.name })

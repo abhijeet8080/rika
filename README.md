@@ -212,3 +212,9 @@ meetings, copy `evals/rag-cases.example.json`, replace its placeholder IDs with
 actual user/meeting/chunk IDs, set `RAG_EVAL_CASES_PATH` to that file, and run
 `npm run rag:eval`. This evaluation uses your configured embedding service and
 databases; the example itself is not a benchmark result.
+
+## Account lifecycle
+
+Calendar disconnect/reconnect, account deletion, recording cleanup, and retention
+are available in Calendar and Account settings. See [ACCOUNT_LIFECYCLE.md](./ACCOUNT_LIFECYCLE.md)
+for migrations, Clerk webhooks, daily Vercel Hobby cleanup, and verification.

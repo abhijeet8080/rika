@@ -65,7 +65,7 @@ export function MeetingList({
     try {
       const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
       if (res.ok) {
-        toast({ title: "Meeting removed", tone: "success" });
+        toast({ title: "Meeting removed", description: "Recording and data cleanup has been queued.", tone: "success" });
         router.refresh();
       } else {
         toast({
@@ -202,7 +202,7 @@ export function MeetingList({
                     {confirmDeleteId === meeting.id ? (
                       <div className={styles.deleteConfirmation}>
                         <p>Remove this meeting?</p>
-                        <small>This removes the meeting and its notes.</small>
+                        <small>This permanently removes the meeting, transcript, notes, and recordings.</small>
                         <div>
                           <button
                             type="button"

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { after } from "next/server";
 import { db } from "@/lib/db/client";
 import { calendarConnections, meetings } from "@/lib/db/schema";
@@ -24,13 +24,13 @@ export const maxDuration = 300;
 
 async function syncCalendarStatus(calendarId: string): Promise<void> {
   const [connection] = await db.select().from(calendarConnections)
-    .where(eq(calendarConnections.recallCalendarId, calendarId));
+    .where(and(eq(calendarConnections.recallCalendarId, calendarId), isNull(calendarConnections.deletionRequestedAt)));
   if (!connection) return;
   const calendar = await retrieveCalendar(calendarId, connection.recallAccount);
   await db
     .update(calendarConnections)
     .set({ status: calendar.status })
-    .where(eq(calendarConnections.recallCalendarId, calendarId));
+    .where(and(eq(calendarConnections.recallCalendarId, calendarId), isNull(calendarConnections.deletionRequestedAt)));
 }
 
 async function autoScheduleChangedEvents(
@@ -40,9 +40,9 @@ async function autoScheduleChangedEvents(
   const [connection] = await db
     .select()
     .from(calendarConnections)
-    .where(eq(calendarConnections.recallCalendarId, calendarId));
+    .where(and(eq(calendarConnections.recallCalendarId, calendarId), isNull(calendarConnections.deletionRequestedAt)));
 
-  if (!connection || !connection.autoRecord) return;
+  if (!connection || !connection.autoRecord || connection.status !== "connected") return;
 
   const result = await listCalendarEvents(calendarId, { updatedAtGte }, connection.recallAccount);
 
@@ -55,7 +55,7 @@ async function autoScheduleChangedEvents(
         connection.userId,
         event.id,
         event.ical_uid,
-        { recallAccount: connection.recallAccount },
+        { recallAccount: connection.recallAccount, calendarConnectionId: connection.id },
       );
     } catch (err) {
       console.error(`Failed to auto-schedule event ${event.id}`, err);
@@ -87,15 +87,15 @@ export async function POST(request: Request) {
   const botId = parsed.data?.bot?.id;
   const calendarId = parsed.data?.calendar_id;
   if (typeof botId === "string") {
-    const [meeting] = await db.select({ recallAccount: meetings.recallAccount })
+    const [meeting] = await db.select({ recallAccount: meetings.recallAccount, deletionRequestedAt: meetings.deletionRequestedAt })
       .from(meetings).where(eq(meetings.recallBotId, botId));
-    if (!meeting) return Response.json({ received: true });
+    if (!meeting || meeting.deletionRequestedAt) return Response.json({ received: true });
     if (meeting.recallAccount !== accountId) {
       return Response.json({ error: "account mismatch" }, { status: 401 });
     }
   } else if (typeof calendarId === "string") {
     const [connection] = await db.select({ recallAccount: calendarConnections.recallAccount })
-      .from(calendarConnections).where(eq(calendarConnections.recallCalendarId, calendarId));
+      .from(calendarConnections).where(and(eq(calendarConnections.recallCalendarId, calendarId), isNull(calendarConnections.deletionRequestedAt)));
     if (!connection) return Response.json({ received: true });
     if (connection.recallAccount !== accountId) {
       return Response.json({ error: "account mismatch" }, { status: 401 });
