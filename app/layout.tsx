@@ -17,9 +17,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.APP_BASE_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "http://localhost:3000"),
+  ),
   title: "Rika",
   description:
     "Be present. Rika remembers. Capture meetings, review decisions, and get answers grounded in the conversation.",
+  openGraph: {
+    type: "website",
+    siteName: "Rika",
+    title: "Be present. Rika remembers.",
+    description:
+      "Capture meetings, review decisions, and get answers grounded in the conversation.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Be present. Rika remembers.",
+    description:
+      "Capture meetings, review decisions, and get answers grounded in the conversation.",
+  },
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
