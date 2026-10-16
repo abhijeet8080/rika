@@ -38,6 +38,32 @@ test("Recall account routing and webhook authentication", async (t) => {
       await createBot({ meetingUrl: "https://meet.google.com/test" }, "primary");
       assert.equal(new Headers(calls.at(-1)?.init?.headers).get("Authorization"), "Token test-primary-key");
     });
+    await t.test("manual and calendar bots use a supported multilingual transcription configuration", async () => {
+      const mockFetch = globalThis.fetch;
+      let checked = 0;
+      globalThis.fetch = async (_input, init) => {
+        const body = JSON.parse(String(init?.body));
+        const config = body.bot_config?.recording_config ?? body.recording_config;
+        const provider = config.transcript.provider.recallai_streaming;
+        // Mirror the provider contract that caused production bot creation
+        // to fail: low latency does not accept automatic language detection.
+        if (provider.mode === "prioritize_low_latency" && provider.language_code !== "en") {
+          return Response.json({ error: "language_code other than english is not supported in low latency mode" }, { status: 400 });
+        }
+        assert.equal(provider.language_code, "auto");
+        assert.equal(provider.mode, "prioritize_accuracy");
+        assert.ok(config.realtime_endpoints[0].events.includes("transcript.data"));
+        checked++;
+        return Response.json({ id: "bot" });
+      };
+      try {
+        for (const account of ["primary", "secondary"] as const) {
+          await createBot({ meetingUrl: "https://meet.google.com/test" }, account);
+          await scheduleCalendarBot("event", { deduplicationKey: "ical", botConfig: {} }, account);
+        }
+        assert.equal(checked, 4);
+      } finally { globalThis.fetch = mockFetch; }
+    });
     await t.test("every resource operation uses the chosen key and region", async () => {
       const operations = [
         () => retrieveBot("bot", "secondary"),

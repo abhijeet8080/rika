@@ -3,7 +3,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { findActiveMeetingForUrl } from "@/lib/db/meetings";
 import { rateLimit } from "@/lib/rate-limit";
 import { getRecallAccount, getDefaultRecallAccountId } from "@/lib/recall/accounts";
-import { createBot } from "@/lib/recall/client";
+import { createBot, RecallApiError } from "@/lib/recall/client";
 import { BOT_DISPLAY_NAME } from "@/lib/recall/live-chat";
 import { detectPlatform } from "@/lib/recall/platform";
 
@@ -49,13 +49,23 @@ export async function POST(request: Request) {
   }
 
   const account = await meetingCreationAccount(userId);
-  const bot = await createBot({
-    meetingUrl,
-    botName: BOT_DISPLAY_NAME,
-    recordVideo,
-    recordAudio,
-    retentionDays: account.retentionDays,
-  }, accountId);
+  let bot;
+  try {
+    bot = await createBot({
+      meetingUrl,
+      botName: BOT_DISPLAY_NAME,
+      recordVideo,
+      recordAudio,
+      retentionDays: account.retentionDays,
+    }, accountId);
+  } catch (error) {
+    if (!(error instanceof RecallApiError)) throw error;
+    console.error(`Recall bot creation failed for account ${accountId}`, error);
+    return Response.json(
+      { error: "The recording provider could not create the bot. Please try again or contact support if this continues." },
+      { status: 502 },
+    );
+  }
   const latestStatus = bot.status_changes.at(-1)?.code ?? "joining";
 
   const meeting = await registerCreatedMeeting(userId, {

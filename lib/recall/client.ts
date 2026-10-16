@@ -35,10 +35,10 @@ function getRecordingConfig({
     transcript: {
       provider: {
         recallai_streaming: {
-          // Finalized utterances are delivered through transcript.data as
-          // the call happens, so low latency is required for @Rika to use
-          // the current discussion rather than only completed meetings.
-          mode: "prioritize_low_latency",
+          // Automatic language detection requires accuracy mode. Recall
+          // rejects auto + low latency (that mode only supports English).
+          // Transcript webhooks remain enabled, with a 3–10 minute delay.
+          mode: "prioritize_accuracy",
           language_code: "auto",
         },
       },
